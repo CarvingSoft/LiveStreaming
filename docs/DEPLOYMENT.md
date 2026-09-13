@@ -22,7 +22,7 @@ See **[docs/GIT-DEPLOY.md](GIT-DEPLOY.md)** for full setup (Windows â†’ GitHub â
 After Git is configured, deploy code changes on EC2 with:
 
 ```bash
-cd /var/www/livestreaming
+cd /home/ubuntu/Liveserver/liveStreaming
 bash deploy/update-from-git.sh
 ```
 
@@ -143,7 +143,7 @@ Camera paths are created dynamically by the backend when you add cameras in admi
 After updating `mediamtx-prod.yml` on EC2:
 
 ```bash
-sudo cp /var/www/livestreaming/mediamtx/mediamtx-prod.yml /opt/mediamtx/mediamtx.yml
+sudo cp /home/ubuntu/Liveserver/liveStreaming/mediamtx/mediamtx-prod.yml /opt/mediamtx/mediamtx.yml
 sudo systemctl restart mediamtx
 sudo systemctl status mediamtx
 curl -i http://127.0.0.1:8888/site-<slug>-<camera>/index.m3u8
@@ -155,7 +155,7 @@ If the service is stuck in `activating (auto-restart)`:
 
 ```bash
 sudo journalctl -u mediamtx -n 30 --no-pager
-bash /var/www/livestreaming/deploy/restart-mediamtx.sh
+bash /home/ubuntu/Liveserver/liveStreaming/deploy/restart-mediamtx.sh
 ```
 
 Ensure `/etc/systemd/system/mediamtx.service` uses **`/opt/mediamtx/mediamtx.yml`** (not `mediamtx-prod.yml`).

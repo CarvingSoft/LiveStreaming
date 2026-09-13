@@ -2,12 +2,21 @@
 
 Use Git instead of WinSCP to deploy code to EC2. Secrets (`.env`) stay **only on the server** — never commit them.
 
+**EC2 repo path (this server):**
+
+```bash
+export REPO_ROOT=/home/ubuntu/Liveserver/liveStreaming
+cd "$REPO_ROOT"
+```
+
+Deploy scripts resolve paths from the repo automatically — only `cd` to the correct folder first.
+
 ## Overview
 
 ```
 Windows (dev)                    GitHub (private)              EC2 (production)
 ─────────────                    ────────────────              ─────────────────
-Edit code  ──push──►  origin/main  ◄──pull──  /var/www/livestreaming
+Edit code  ──push──►  origin/main  ◄──pull──  /home/ubuntu/Liveserver/liveStreaming
                                                               ├── backend/.env  (server only)
                                                               └── bash deploy/update-from-git.sh
 ```
@@ -61,45 +70,55 @@ sudo apt install -y git
 ### 2. Back up production secrets
 
 ```bash
-# If you deployed manually to /var/www/livestreaming:
-sudo cp /var/www/livestreaming/backend/.env ~/backend.env.backup
+export REPO_ROOT=/home/ubuntu/Liveserver/liveStreaming
+
+cp "$REPO_ROOT/backend/.env" ~/backend.env.backup
 ls -la ~/backend.env.backup
 ```
 
-### 3. Replace manual folder with Git clone
+### 3. Attach Git to your existing WinSCP folder (recommended)
 
-**Option A — fresh clone (recommended)**
-
-```bash
-sudo mv /var/www/livestreaming /var/www/livestreaming.winscp-backup
-sudo mkdir -p /var/www
-sudo chown "$USER:$USER" /var/www
-
-git clone https://github.com/YOUR_ORG/LiveStreaming.git /var/www/livestreaming
-cd /var/www/livestreaming
-```
-
-**Option B — keep existing folder, attach Git**
+You already have the project at `/home/ubuntu/Liveserver/liveStreaming`. Keep that path — do not move to `/var/www/`.
 
 ```bash
-cd /var/www/livestreaming
+export REPO_ROOT=/home/ubuntu/Liveserver/liveStreaming
+cd "$REPO_ROOT"
+
 git init
 git remote add origin https://github.com/YOUR_ORG/LiveStreaming.git
 git fetch origin
 git checkout -B main origin/main
 ```
 
+If `git remote add` fails because origin exists:
+
+```bash
+git remote set-url origin https://github.com/YOUR_ORG/LiveStreaming.git
+git pull origin main
+```
+
+**Option B — fresh clone elsewhere (only if starting clean)**
+
+```bash
+mv /home/ubuntu/Liveserver/liveStreaming /home/ubuntu/Liveserver/liveStreaming.winscp-backup
+git clone https://github.com/YOUR_ORG/LiveStreaming.git /home/ubuntu/Liveserver/liveStreaming
+```
+
 ### 4. Restore `.env` and set permissions
 
 ```bash
-cp ~/backend.env.backup /var/www/livestreaming/backend/.env
-chmod 600 /var/www/livestreaming/backend/.env
+export REPO_ROOT=/home/ubuntu/Liveserver/liveStreaming
+
+cp ~/backend.env.backup "$REPO_ROOT/backend/.env"
+chmod 600 "$REPO_ROOT/backend/.env"
 ```
 
 ### 5. Fix MediaMTX and deploy
 
 ```bash
-cd /var/www/livestreaming
+export REPO_ROOT=/home/ubuntu/Liveserver/liveStreaming
+cd "$REPO_ROOT"
+
 bash deploy/restart-mediamtx.sh
 bash deploy/update-from-git.sh
 ```
@@ -147,7 +166,7 @@ Host github.com
 EOF
 chmod 600 ~/.ssh/config
 
-cd /var/www/livestreaming
+cd /home/ubuntu/Liveserver/liveStreaming
 git remote set-url origin git@github.com:YOUR_ORG/LiveStreaming.git
 git pull
 ```
@@ -168,7 +187,7 @@ git push
 ### On EC2 (deploy)
 
 ```bash
-cd /var/www/livestreaming
+cd /home/ubuntu/Liveserver/liveStreaming
 bash deploy/update-from-git.sh
 ```
 
@@ -208,5 +227,5 @@ This script:
 After verifying production works:
 
 ```bash
-sudo rm -rf /var/www/livestreaming.winscp-backup
+rm -rf /home/ubuntu/Liveserver/liveStreaming.winscp-backup
 ```

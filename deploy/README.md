@@ -15,17 +15,18 @@ See [aws-prereqs.md](aws-prereqs.md) — EC2, Elastic IP, Security Group, DNS, s
 
 See **[docs/GIT-DEPLOY.md](../docs/GIT-DEPLOY.md)** if migrating from WinSCP manual uploads.
 
+**EC2 repo path:** `/home/ubuntu/Liveserver/liveStreaming`
+
 ```bash
-sudo mkdir -p /var/www && sudo chown ubuntu:ubuntu /var/www
-cd /var/www
-git clone <YOUR_REPO_URL> livestreaming
-cd livestreaming
+cd /home/ubuntu/Liveserver/liveStreaming
+git clone <YOUR_REPO_URL> .   # first time only, if folder is empty
+# — or attach git to existing WinSCP folder (see docs/GIT-DEPLOY.md)
 ```
 
 ### Ongoing deploys (after Git is set up)
 
 ```bash
-cd /var/www/livestreaming
+cd /home/ubuntu/Liveserver/liveStreaming
 bash deploy/update-from-git.sh
 ```
 
@@ -90,9 +91,8 @@ bash deploy/verify-deployment.sh kochi-rto
 ## Redeploy after code changes
 
 ```bash
-cd /var/www/livestreaming
-git pull
-bash deploy/deploy-app.sh
+cd /home/ubuntu/Liveserver/liveStreaming
+bash deploy/update-from-git.sh
 ```
 
 ## Logs
