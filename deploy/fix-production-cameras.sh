@@ -14,26 +14,7 @@ fi
 
 echo ""
 echo "==> 2. ENCRYPTION_KEY in ${BACKEND_DIR}/.env"
-if [[ ! -f "${BACKEND_DIR}/.env" ]]; then
-  echo "ERROR: ${BACKEND_DIR}/.env not found"
-  exit 1
-fi
-
-KEY_BYTES="$(node -e "
-  require('dotenv').config({ path: '${BACKEND_DIR}/.env' });
-  const key = process.env.ENCRYPTION_KEY || '';
-  if (!key) { console.log('missing'); process.exit(0); }
-  console.log(Buffer.from(key, 'base64').length);
-")"
-
-if [[ "${KEY_BYTES}" != "32" ]]; then
-  echo "ERROR: ENCRYPTION_KEY decodes to '${KEY_BYTES}' bytes (need 32)."
-  echo "Run:  openssl rand -base64 32"
-  echo "Then:  nano ${BACKEND_DIR}/.env"
-  echo "Set ENCRYPTION_KEY to that value, then run this script again."
-  exit 1
-fi
-echo "    OK (32 bytes)"
+bash "${REPO_ROOT}/deploy/verify-backend-env.sh" "${BACKEND_DIR}"
 
 echo ""
 echo "==> 3. Build backend"

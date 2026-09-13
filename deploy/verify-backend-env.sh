@@ -2,24 +2,28 @@
 # Verify backend/.env on EC2 (ENCRYPTION_KEY, API health)
 set -euo pipefail
 
-BACKEND_DIR="${1:-/home/ubuntu/LiveServer/LiveStreaming/backend}"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=env-utils.sh
+source "${SCRIPT_DIR}/env-utils.sh"
 
-if [[ ! -f "${BACKEND_DIR}/.env" ]]; then
-  echo "ERROR: ${BACKEND_DIR}/.env not found"
+BACKEND_DIR="${1:-/home/ubuntu/LiveServer/LiveStreaming/backend}"
+ENV_FILE="${BACKEND_DIR}/.env"
+
+if [[ ! -f "${ENV_FILE}" ]]; then
+  echo "ERROR: ${ENV_FILE} not found"
   exit 1
 fi
 
 echo "==> ENCRYPTION_KEY check"
-KEY_BYTES="$(node -e "
-  require('dotenv').config({ path: '${BACKEND_DIR}/.env' });
-  const key = process.env.ENCRYPTION_KEY || '';
-  if (!key) { console.log('missing'); process.exit(0); }
-  console.log(Buffer.from(key, 'base64').length);
-")"
+ENCRYPTION_KEY="$(read_env_var "${ENV_FILE}" ENCRYPTION_KEY || true)"
+KEY_BYTES="$(encryption_key_byte_length "${ENCRYPTION_KEY:-}")"
 
 KEY_OK=false
 if [[ "${KEY_BYTES}" == "missing" ]]; then
   echo "  FAIL ENCRYPTION_KEY is not set"
+elif [[ "${KEY_BYTES}" == "invalid" ]]; then
+  echo "  FAIL ENCRYPTION_KEY is not valid base64"
+  echo "       Fix: openssl rand -base64 32"
 elif [[ "${KEY_BYTES}" == "32" ]]; then
   echo "  OK   ENCRYPTION_KEY decodes to 32 bytes"
   KEY_OK=true
