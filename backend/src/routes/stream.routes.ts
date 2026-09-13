@@ -63,10 +63,11 @@ streamRouter.get('/hls/:token/:file', async (req, res, next) => {
       : await fetchFromMediaMtx(hlsUrl);
 
     if (!response.ok) {
-      throw new AppError(
-        response.status === 404 ? 404 : 502,
-        `Unable to fetch HLS stream (MediaMTX returned ${response.status})`,
-      );
+      const hint =
+        response.status === 404
+          ? 'Stream path not found in MediaMTX. Re-save the camera in admin or run npm run sync:mediamtx:prod.'
+          : 'MediaMTX could not serve HLS. Check DVR IP is reachable from EC2 (not a local 192.168.x.x address), RTSP port/credentials, and mediamtx logs.';
+      throw new AppError(response.status === 404 ? 404 : 502, hint);
     }
 
     const contentType = response.headers.get('content-type') ?? 'application/octet-stream';

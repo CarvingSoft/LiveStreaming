@@ -4,6 +4,27 @@ Use when cameras cannot be added, streams fail, or MediaMTX shows `path not foun
 
 **EC2 repo path:** `/home/ubuntu/LiveServer/LiveStreaming`
 
+## HLS stream 502 (`main_stream.m3u8`)
+
+Playback token works but video fails — MediaMTX cannot pull RTSP or the path is missing.
+
+```bash
+bash deploy/diagnose-stream.sh site-kochi-entrance
+grep hlsVariant /opt/mediamtx/mediamtx.yml          # must be mpegts
+curl -s http://127.0.0.1:9997/v3/config/paths/list | grep itemCount
+cd backend && npm run sync:mediamtx:prod
+pm2 restart cctv-api
+```
+
+**Common cause:** camera DVR IP is a **private LAN address** (`192.168.x.x`). EC2 on AWS cannot reach it. Use the DVR's **public IP** (with port 554 forwarded), a **VPN**, or site-to-site routing.
+
+Test RTSP from EC2:
+
+```bash
+# Replace with your DVR IP/port from admin camera config
+nc -zv YOUR_DVR_PUBLIC_IP 554
+```
+
 ## Camera create returns "Internal server error"
 
 Usually the API is still running an **old build** or PM2 did not reload `backend/.env`.

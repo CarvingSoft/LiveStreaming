@@ -54,7 +54,7 @@ export async function fetchHlsManifestFromMediaMtx(url: string): Promise<Respons
     lastResponse = response;
 
     // Only retry while the path/stream is still starting
-    if (response.status !== 404 && response.status !== 503 && response.status !== 500) {
+    if (response.status !== 404 && response.status !== 502 && response.status !== 503 && response.status !== 500) {
       break;
     }
 
