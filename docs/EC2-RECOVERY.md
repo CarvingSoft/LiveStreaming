@@ -4,6 +4,20 @@ Use when cameras cannot be added, streams fail, or MediaMTX shows `path not foun
 
 **EC2 repo path:** `/home/ubuntu/LiveServer/LiveStreaming`
 
+## Camera create returns "Internal server error"
+
+Usually the API is still running an **old build** or PM2 did not reload `backend/.env`.
+
+```bash
+cd /home/ubuntu/LiveServer/LiveStreaming
+bash deploy/diagnose-production.sh
+bash deploy/update-from-git.sh
+curl -s http://127.0.0.1:5280/api/health   # must include "encryptionKeyOk":true
+pm2 logs cctv-api --lines 30               # look for "Unhandled error" or ENCRYPTION_KEY
+```
+
+If health has no `encryptionKeyOk` field at all, the deploy did not rebuild/restart the API.
+
 ## If `git pull` fails on `backend/dist/*`
 
 Old builds on the server modified tracked compiled files. Reset to GitHub and redeploy (safe — `backend/.env` is gitignored):

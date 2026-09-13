@@ -61,4 +61,20 @@ if ! pm2 startup systemd -u "${USER}" --hp "${HOME}" 2>/dev/null | grep -q "alre
 fi
 
 echo "==> Application deployed."
-curl -sf "http://127.0.0.1:5280/api/health" | head -c 500 || echo "(health check pending — verify .env and MongoDB)"
+HEALTH_JSON="$(curl -sf "http://127.0.0.1:5280/api/health" || true)"
+if [[ -z "${HEALTH_JSON}" ]]; then
+  echo "ERROR: API health check failed — is MongoDB running?"
+  exit 1
+fi
+
+echo "${HEALTH_JSON}"
+
+if ! grep -q '"encryptionKeyOk":true' <<< "${HEALTH_JSON}"; then
+  echo ""
+  echo "ERROR: Deploy finished but API reports invalid or stale build."
+  echo "  - Stale build: grep encryptionKeyOk backend/dist/routes/health.routes.js"
+  echo "  - Invalid key:  bash deploy/verify-backend-env.sh ${BACKEND_DIR}"
+  echo "  - Restart:      pm2 delete cctv-api && pm2 start ${BACKEND_DIR}/dist/server.js --name cctv-api --cwd ${BACKEND_DIR}"
+  bash "${REPO_ROOT}/deploy/diagnose-production.sh" || true
+  exit 1
+fi
