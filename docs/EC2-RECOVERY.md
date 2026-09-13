@@ -4,6 +4,17 @@ Use when cameras cannot be added, streams fail, or MediaMTX shows `path not foun
 
 **EC2 repo path:** `/home/ubuntu/LiveServer/LiveStreaming`
 
+## If `git pull` fails on `backend/dist/*`
+
+Old builds on the server modified tracked compiled files. Reset to GitHub and redeploy (safe — `backend/.env` is gitignored):
+
+```bash
+cd /home/ubuntu/LiveServer/LiveStreaming
+git fetch origin
+git reset --hard origin/main
+bash deploy/update-from-git.sh
+```
+
 ## One-shot fix
 
 ```bash

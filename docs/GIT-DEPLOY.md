@@ -193,7 +193,7 @@ bash deploy/update-from-git.sh
 
 This script:
 
-1. `git pull`
+1. `git fetch` + `git reset --hard origin/<branch>` (avoids conflicts from old tracked `backend/dist/` builds on the server)
 2. Restarts MediaMTX with `mediamtx-prod.yml`
 3. Builds backend + frontend
 4. Restarts PM2 (`cctv-api` syncs cameras to MediaMTX on startup)
@@ -215,7 +215,8 @@ This script:
 
 | Problem | Fix |
 |---------|-----|
-| `git pull` conflicts | `git stash` or resolve; never overwrite `backend/.env` |
+| `git pull` blocked by `backend/dist/*` | `git fetch origin && git reset --hard origin/main` then `bash deploy/update-from-git.sh` (rebuilds dist; does not touch `backend/.env`) |
+| Other `git pull` conflicts | Resolve manually; never overwrite `backend/.env` |
 | MediaMTX port in use | `bash deploy/restart-mediamtx.sh` |
 | No camera paths after restart | `pm2 restart cctv-api` (auto-syncs on startup) |
 | Wrong mediamtx.yml (887 lines) | `sudo cp mediamtx/mediamtx-prod.yml /opt/mediamtx/mediamtx.yml` |

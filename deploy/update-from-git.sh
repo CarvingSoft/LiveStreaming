@@ -12,8 +12,10 @@ if [[ ! -d .git ]]; then
   exit 1
 fi
 
-echo "==> Pulling latest code..."
-git pull --ff-only
+echo "==> Pulling latest code (discards local changes to tracked files such as backend/dist/)..."
+git fetch origin
+BRANCH="$(git rev-parse --abbrev-ref HEAD)"
+git reset --hard "origin/${BRANCH}"
 
 echo "==> Building and deploying app (includes MediaMTX restart + camera sync)..."
 bash "${REPO_ROOT}/deploy/deploy-app.sh"
