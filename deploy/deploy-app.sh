@@ -48,6 +48,14 @@ npm run seed:prod
 
 echo "==> Starting backend with PM2 (cwd=${BACKEND_DIR} loads .env)..."
 pm2 delete cctv-api 2>/dev/null || true
+
+# Orphan node processes (manual starts / old PM2) can keep :5280 while PM2 runs a new PID elsewhere.
+if ss -tlnp 2>/dev/null | grep -q ':5280'; then
+  echo "    Port 5280 still in use — stopping orphan process before PM2 start..."
+  fuser -k 5280/tcp 2>/dev/null || true
+  sleep 2
+fi
+
 pm2 start "${BACKEND_DIR}/dist/server.js" --name cctv-api --cwd "${BACKEND_DIR}"
 pm2 save
 

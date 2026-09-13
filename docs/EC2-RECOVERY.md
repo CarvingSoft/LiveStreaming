@@ -18,6 +18,18 @@ pm2 logs cctv-api --lines 30               # look for "Unhandled error" or ENCRY
 
 If health has no `encryptionKeyOk` field at all, the deploy did not rebuild/restart the API.
 
+If `grep encryptionKeyOk backend/dist/...` succeeds but health still omits it, an **orphan node process** owns port 5280 (not PM2):
+
+```bash
+ss -tlnp | grep 5280
+cat /root/.pm2/pids/cctv-api-*.pid
+# PIDs must match — if not:
+sudo fuser -k 5280/tcp
+pm2 delete cctv-api
+pm2 start backend/dist/server.js --name cctv-api --cwd /home/ubuntu/LiveServer/LiveStreaming/backend
+pm2 save
+```
+
 ## If `git pull` fails on `backend/dist/*`
 
 Old builds on the server modified tracked compiled files. Reset to GitHub and redeploy (safe — `backend/.env` is gitignored):
