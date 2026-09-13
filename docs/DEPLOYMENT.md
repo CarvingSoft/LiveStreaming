@@ -22,9 +22,51 @@ See **[docs/GIT-DEPLOY.md](GIT-DEPLOY.md)** for full setup (Windows → GitHub �
 After Git is configured, deploy code changes on EC2 with:
 
 ```bash
-cd /home/ubuntu/Liveserver/liveStreaming
+cd /home/ubuntu/LiveServer/LiveStreaming
 bash deploy/update-from-git.sh
 ```
+
+## Local development vs production
+
+| | Local (Windows) | Production (EC2) |
+|--|-----------------|------------------|
+| Frontend | `ng serve` → `http://localhost:4200` | `https://live.carvingsoft.com` |
+| API | `http://localhost:5280/api` (auto from `ng serve`) | `https://api.live.carvingsoft.com/api` |
+| MongoDB | Local MongoDB on PC | MongoDB on EC2 |
+| MediaMTX | `mediamtx.exe mediamtx-dev.yml` | systemd `/opt/mediamtx/mediamtx.yml` |
+| Secrets | `backend/.env` (local only) | `backend/.env` on EC2 (never commit) |
+
+**Do not** point local `ng serve` at the production API. Auth and admin APIs must use the same backend (fixed via shared `getApiBaseUrl()` in the frontend).
+
+### Local dev checklist
+
+```powershell
+# MongoDB
+mongosh --eval "db.runCommand({ ping: 1 })"
+
+# MediaMTX (use dev config, not the 887-line template)
+cd mediamtx
+.\mediamtx.exe mediamtx-dev.yml
+
+# Backend
+cd backend
+npm run dev
+
+# Frontend (separate terminal)
+cd frontend
+ng serve
+```
+
+Verify encryption key: `node -e "require('dotenv').config(); console.log(Buffer.from(process.env.ENCRYPTION_KEY,'base64').length)"` → **32**
+
+### Production recovery (cameras / streaming broken)
+
+```bash
+cd /home/ubuntu/LiveServer/LiveStreaming
+bash deploy/fix-production-cameras.sh
+```
+
+If `ENCRYPTION_KEY` was changed without backup, delete all cameras in admin and re-create them with RTSP passwords.
 
 ## Server Layout
 

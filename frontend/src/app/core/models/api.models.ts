@@ -21,12 +21,13 @@ export interface Site {
 }
 
 export interface CameraSourceConfig {
-  host: string;
-  port: number;
-  username: string;
-  channel: number;
-  subtype: 0 | 1;
+  host?: string;
+  port?: number;
+  username?: string;
+  channel?: number;
+  subtype?: 0 | 1;
   customPath?: string;
+  credentialsUnavailable?: true;
 }
 
 export interface Camera {

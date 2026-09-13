@@ -453,6 +453,11 @@ export class SiteDetailComponent {
     this.api.getCamera(camera.id).subscribe({
       next: (details) => {
         const config = details.sourceConfig;
+        if (config?.credentialsUnavailable) {
+          this.cameraError.set(
+            'Stored DVR credentials cannot be read. Re-enter the RTSP password and save.',
+          );
+        }
         this.editRtspDraft.set({
           host: config?.host ?? '',
           port: Number(config?.port ?? 554),
@@ -641,6 +646,9 @@ export class SiteDetailComponent {
   private loadCameras(siteId: string): void {
     this.api.getCameras(siteId).subscribe({
       next: (cameras) => this.cameras.set(cameras),
+      error: (err) => {
+        this.cameraError.set(err.error?.message ?? 'Unable to load cameras for this site.');
+      },
     });
   }
 }

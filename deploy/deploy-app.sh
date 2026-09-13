@@ -14,10 +14,22 @@ if [[ ! -f "${BACKEND_DIR}/.env" ]]; then
   exit 1
 fi
 
+echo "==> Ensuring swap (small EC2 instances need this for tsc)..."
+bash "${REPO_ROOT}/deploy/setup-swap.sh" || true
+
+echo "==> Verifying backend .env..."
+bash "${REPO_ROOT}/deploy/verify-backend-env.sh" "${BACKEND_DIR}" || {
+  echo "ERROR: Fix backend/.env (ENCRYPTION_KEY must decode to 32 bytes) before deploying."
+  exit 1
+}
+
 echo "==> Building backend..."
 cd "${BACKEND_DIR}"
 npm ci
-npm run build
+npm run build:prod
+
+echo "==> Syncing MediaMTX production config..."
+bash "${REPO_ROOT}/deploy/restart-mediamtx.sh"
 
 echo "==> Building frontend..."
 cd "${FRONTEND_DIR}"
@@ -34,13 +46,14 @@ echo "==> Seeding admin user (skips if already exists)..."
 cd "${BACKEND_DIR}"
 npm run seed:prod
 
-echo "==> Starting backend with PM2..."
-if pm2 describe cctv-api >/dev/null 2>&1; then
-  pm2 restart cctv-api
-else
-  pm2 start dist/server.js --name cctv-api
-fi
+echo "==> Starting backend with PM2 (cwd=${BACKEND_DIR} loads .env)..."
+pm2 delete cctv-api 2>/dev/null || true
+pm2 start "${BACKEND_DIR}/dist/server.js" --name cctv-api --cwd "${BACKEND_DIR}"
 pm2 save
+
+echo "==> Syncing cameras to MediaMTX..."
+cd "${BACKEND_DIR}"
+npm run sync:mediamtx:prod
 
 if ! pm2 startup systemd -u "${USER}" --hp "${HOME}" 2>/dev/null | grep -q "already"; then
   echo "Run the sudo command printed below if PM2 startup is not configured:"

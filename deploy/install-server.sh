@@ -51,8 +51,8 @@ if [[ ! -x "${MEDIAMTX_INSTALL_DIR}/mediamtx" ]]; then
   sudo rm -f mediamtx.tar.gz
 fi
 
-sudo cp "/opt/mediamtx/mediamtx-prod.yml" "/opt/mediamtx.yml"
-sudo chmod +x /opt/mediamtx"
+sudo cp "${REPO_ROOT}/mediamtx/mediamtx-prod.yml" "${MEDIAMTX_INSTALL_DIR}/mediamtx.yml"
+sudo chmod +x "${MEDIAMTX_INSTALL_DIR}/mediamtx"
 
 echo "==> Installing MediaMTX systemd service..."
 sudo cp "${REPO_ROOT}/deploy/systemd/mediamtx.service" /etc/systemd/system/mediamtx.service

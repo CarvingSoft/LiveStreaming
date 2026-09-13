@@ -50,6 +50,19 @@ Verify Control API (localhost only):
 curl http://127.0.0.1:9997/v3/paths/list
 ```
 
+## API URL (important)
+
+Local `ng serve` uses **localhost:5280** for all API calls (login, admin, playback). Do not set production `apiUrl` in [`environment.ts`](../frontend/src/environments/environment.ts).
+
+Verify encryption key before adding cameras:
+
+```powershell
+cd backend
+node -e "require('dotenv').config(); console.log('key bytes:', Buffer.from(process.env.ENCRYPTION_KEY,'base64').length)"
+```
+
+Must print **32**. If cameras fail to save or decrypt, delete them in admin and re-create with RTSP password.
+
 ## 3. Backend
 
 ```powershell

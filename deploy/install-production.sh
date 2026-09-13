@@ -18,6 +18,7 @@ if [[ ! -f "${REPO_ROOT}/backend/.env" ]]; then
   exit 1
 fi
 
+bash "${REPO_ROOT}/deploy/setup-swap.sh"
 bash "${REPO_ROOT}/deploy/install-server.sh"
 bash "${REPO_ROOT}/deploy/deploy-app.sh"
 bash "${REPO_ROOT}/deploy/setup-nginx.sh"

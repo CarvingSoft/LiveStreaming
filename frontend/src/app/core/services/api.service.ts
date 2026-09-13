@@ -1,6 +1,6 @@
 import { Injectable, inject } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
-import { environment } from '../../../environments/environment';
+import { getApiBaseUrl } from './api-base';
 import {
   Camera,
   DashboardStats,
@@ -15,12 +15,7 @@ export class ApiService {
   private readonly http = inject(HttpClient);
 
   private get baseUrl(): string {
-    if (typeof window === 'undefined' || environment.production) {
-      return environment.apiUrl;
-    }
-
-    const { protocol, hostname } = window.location;
-    return `${protocol}//${hostname}:${environment.apiPort}/api`;
+    return getApiBaseUrl();
   }
 
   getDashboardStats() {

@@ -15,10 +15,7 @@ fi
 echo "==> Pulling latest code..."
 git pull --ff-only
 
-echo "==> Restarting MediaMTX (prod config + free ports)..."
-bash "${REPO_ROOT}/deploy/restart-mediamtx.sh"
-
-echo "==> Building and deploying app..."
+echo "==> Building and deploying app (includes MediaMTX restart + camera sync)..."
 bash "${REPO_ROOT}/deploy/deploy-app.sh"
 
 echo ""

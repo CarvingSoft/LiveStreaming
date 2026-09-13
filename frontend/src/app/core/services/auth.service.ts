@@ -2,8 +2,8 @@ import { Injectable, computed, inject, signal } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Router } from '@angular/router';
 import { tap } from 'rxjs';
-import { environment } from '../../../environments/environment';
 import { User } from '../models/api.models';
+import { getApiBaseUrl } from './api-base';
 
 interface LoginResponse {
   token: string;
@@ -24,7 +24,7 @@ export class AuthService {
   readonly isAuthenticated = computed(() => Boolean(this.tokenSignal()));
 
   login(email: string, password: string) {
-    return this.http.post<LoginResponse>(`${environment.apiUrl}/auth/login`, { email, password }).pipe(
+    return this.http.post<LoginResponse>(`${getApiBaseUrl()}/auth/login`, { email, password }).pipe(
       tap((response) => {
         this.tokenSignal.set(response.token);
         this.userSignal.set(response.user);
@@ -34,7 +34,7 @@ export class AuthService {
   }
 
   loadCurrentUser() {
-    return this.http.get<User>(`${environment.apiUrl}/auth/me`).pipe(
+    return this.http.get<User>(`${getApiBaseUrl()}/auth/me`).pipe(
       tap((user) => this.userSignal.set(user)),
     );
   }

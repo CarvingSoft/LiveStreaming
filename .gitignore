@@ -5,7 +5,7 @@ node_modules/
 *.log
 .DS_Store
 frontend/dist/
-
+backend/dist/
 .mediamtx/
 mediamtx/mediamtx.exe
 mediamtx/mediamtx
