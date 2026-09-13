@@ -1,0 +1,33 @@
+# Carvingsoft CCTV Platform - MediaMTX production configuration
+# LIVE STREAMING ONLY - no recording
+# Installed to /opt/mediamtx/mediamtx.yml by deploy/install-server.sh
+
+logLevel: info
+logDestinations: [stdout]
+
+api: true
+apiAddress: 127.0.0.1:9997
+
+# Pull-only setup — disable unused ingest protocols
+rtmp: false
+srt: false
+moq: false
+
+# TCP-only RTSP avoids binding UDP :8000 (RTP)
+rtspTransports: [tcp]
+rtspAddress: :8554
+webrtcAddress: :8889
+hlsAddress: :8888
+
+# mpegts avoids LL-HLS Secure cookie redirects that break the HTTP backend proxy
+hlsVariant: mpegts
+
+webrtcAllowOrigins: ['https://live.carvingsoft.com']
+
+pathDefaults:
+  sourceOnDemand: true
+  sourceOnDemandStartTimeout: 10s
+  sourceOnDemandCloseAfter: 10s
+  rtspTransport: tcp
+
+paths: {}

@@ -1,0 +1,28 @@
+# Carvingsoft CCTV Platform - MediaMTX development configuration
+# LIVE STREAMING ONLY - no recording
+# Use this file: .\mediamtx.exe mediamtx-dev.yml
+
+logLevel: info
+logDestinations: [stdout]
+
+# REQUIRED: backend uses Control API on port 9997
+api: true
+apiAddress: 127.0.0.1:9997
+
+rtspAddress: :8554
+webrtcAddress: :8889
+hlsAddress: :8888
+
+# Match production — LL-HLS cookie redirects break the HTTP backend HLS proxy
+hlsVariant: mpegts
+
+# Allow browser access from localhost and LAN IPs during development
+webrtcAllowOrigins: ['*']
+
+pathDefaults:
+  sourceOnDemand: true
+  sourceOnDemandStartTimeout: 10s
+  sourceOnDemandCloseAfter: 10s
+  rtspTransport: tcp
+
+paths: {}
