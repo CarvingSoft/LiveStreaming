@@ -10,12 +10,21 @@ function isMongoDuplicateKeyError(err: unknown): err is { code: number; keyPatte
   return Boolean(err && typeof err === 'object' && 'code' in err && (err as { code: number }).code === 11000);
 }
 
+function isMongoCastError(err: unknown): err is { name: string } {
+  return Boolean(err && typeof err === 'object' && 'name' in err && (err as { name: string }).name === 'CastError');
+}
+
 export function errorHandler(err: unknown, _req: Request, res: Response, _next: NextFunction): void {
   if (err instanceof AppError) {
     res.status(err.statusCode).json({
       message: err.message,
       details: env.NODE_ENV === 'development' ? err.details : undefined,
     });
+    return;
+  }
+
+  if (isMongoCastError(err)) {
+    res.status(400).json({ message: 'Invalid id format' });
     return;
   }
 
@@ -31,6 +40,16 @@ export function errorHandler(err: unknown, _req: Request, res: Response, _next: 
     return;
   }
 
-  console.error('Unhandled error:', err instanceof Error ? err.message : err);
+  const message = err instanceof Error ? err.message : String(err);
+
+  if (message.includes('ENCRYPTION_KEY')) {
+    res.status(503).json({
+      message:
+        'Server ENCRYPTION_KEY is invalid. Set a base64-encoded 32-byte key in backend/.env (openssl rand -base64 32), then restart PM2.',
+    });
+    return;
+  }
+
+  console.error('Unhandled error:', message);
   res.status(500).json({ message: 'Internal server error' });
 }

@@ -3,6 +3,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
+exports.isValidEncryptionKey = isValidEncryptionKey;
 exports.encryptJson = encryptJson;
 exports.decryptJson = decryptJson;
 exports.generateEncryptionKey = generateEncryptionKey;
@@ -10,6 +11,14 @@ const crypto_1 = __importDefault(require("crypto"));
 const env_1 = require("../config/env");
 const ALGORITHM = 'aes-256-gcm';
 const IV_LENGTH = 12;
+function isValidEncryptionKey(value) {
+    try {
+        return Buffer.from(value, 'base64').length === 32;
+    }
+    catch {
+        return false;
+    }
+}
 function getKey() {
     const key = Buffer.from(env_1.env.ENCRYPTION_KEY, 'base64');
     if (key.length !== 32) {

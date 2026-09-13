@@ -7,16 +7,21 @@ function sanitizeRtspSourceConfigForAdmin(encryptedSourceConfig?: string) {
     return undefined;
   }
 
-  const config = decryptJson<RtspSourceConfig>(encryptedSourceConfig);
+  try {
+    const config = decryptJson<RtspSourceConfig>(encryptedSourceConfig);
 
-  return {
-    host: config.host,
-    port: config.port,
-    username: config.username,
-    channel: config.channel,
-    subtype: config.subtype,
-    customPath: config.customPath,
-  };
+    return {
+      host: config.host,
+      port: config.port,
+      username: config.username,
+      channel: config.channel,
+      subtype: config.subtype,
+      customPath: config.customPath,
+    };
+  } catch {
+    // Wrong ENCRYPTION_KEY or corrupted payload — do not fail the whole request
+    return { credentialsUnavailable: true as const };
+  }
 }
 
 export function sanitizeCamera(camera: ICamera & { _id: unknown }) {

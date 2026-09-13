@@ -41,6 +41,15 @@ export declare function sanitizeCameraAdmin(camera: ICamera & {
         channel: number;
         subtype: 0 | 1;
         customPath: string | undefined;
+        credentialsUnavailable?: undefined;
+    } | {
+        host?: undefined;
+        port?: undefined;
+        username?: undefined;
+        channel?: undefined;
+        subtype?: undefined;
+        customPath?: undefined;
+        credentialsUnavailable: true;
     } | undefined;
 };
 export declare function sanitizePublicCamera(camera: ICamera & {

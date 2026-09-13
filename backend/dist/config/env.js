@@ -6,6 +6,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.corsOrigins = exports.env = void 0;
 const dotenv_1 = __importDefault(require("dotenv"));
 const zod_1 = require("zod");
+const encryption_service_1 = require("../services/encryption.service");
 dotenv_1.default.config();
 const envSchema = zod_1.z.object({
     NODE_ENV: zod_1.z.enum(['development', 'production', 'test']).default('development'),
@@ -28,6 +29,13 @@ const envSchema = zod_1.z.object({
     SEED_ADMIN_EMAIL: zod_1.z.string().email().optional(),
     SEED_ADMIN_PASSWORD: zod_1.z.string().min(8).optional(),
 }).superRefine((data, ctx) => {
+    if (!(0, encryption_service_1.isValidEncryptionKey)(data.ENCRYPTION_KEY)) {
+        ctx.addIssue({
+            code: 'custom',
+            path: ['ENCRYPTION_KEY'],
+            message: 'ENCRYPTION_KEY must be a base64-encoded 32-byte key (generate with: openssl rand -base64 32)',
+        });
+    }
     if (data.NODE_ENV !== 'production') {
         return;
     }

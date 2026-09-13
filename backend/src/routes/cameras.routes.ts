@@ -25,6 +25,17 @@ export const camerasRouter = Router();
 
 camerasRouter.use(authenticate, authorize('super_admin', 'admin'));
 
+function mapEncryptionError(error: unknown): AppError {
+  const message = error instanceof Error ? error.message : 'Encryption failed';
+  if (message.includes('ENCRYPTION_KEY')) {
+    return new AppError(
+      503,
+      'Server ENCRYPTION_KEY is invalid. Set a base64-encoded 32-byte key in backend/.env (openssl rand -base64 32).',
+    );
+  }
+  return new AppError(500, message);
+}
+
 function mapMediaMtxSyncError(error: unknown): AppError {
   if (error instanceof AppError) {
     return error;
@@ -46,10 +57,10 @@ camerasRouter.get(
   validateParams(siteIdParamSchema),
   async (req, res, next) => {
     try {
-      const siteId = paramString(req, 'id');
-      await getSiteById(siteId);
-      const cameras = await Camera.find({ siteId }).sort({ sortOrder: 1, createdAt: 1 });
-      res.json(cameras.map(sanitizeCameraAdmin));
+      const site = await getSiteById(paramString(req, 'id'));
+      const cameras = await Camera.find({ siteId: site._id }).sort({ sortOrder: 1, createdAt: 1 });
+      // List view does not need RTSP credentials — avoid decrypt failures breaking the page
+      res.json(cameras.map(sanitizeCamera));
     } catch (error) {
       next(error);
     }
@@ -88,9 +99,14 @@ camerasRouter.post(
       }
 
       const mediamtxPath = buildMediamtxPath(site.slug, cameraKey);
-      const encryptedSourceConfig = body.sourceConfig
-        ? encryptJson(body.sourceConfig)
-        : undefined;
+      let encryptedSourceConfig: string | undefined;
+      if (body.sourceConfig) {
+        try {
+          encryptedSourceConfig = encryptJson(body.sourceConfig);
+        } catch (error) {
+          throw mapEncryptionError(error);
+        }
+      }
 
       const camera = await Camera.create({
         siteId: site._id,
@@ -212,7 +228,11 @@ camerasRouter.put(
           throw new AppError(400, 'RTSP password is required');
         }
 
-        camera.encryptedSourceConfig = encryptJson(merged);
+        try {
+          camera.encryptedSourceConfig = encryptJson(merged);
+        } catch (error) {
+          throw mapEncryptionError(error);
+        }
         camera.channelNumber = merged.channel;
       }
 

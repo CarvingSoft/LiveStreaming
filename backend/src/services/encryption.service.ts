@@ -4,6 +4,14 @@ import { env } from '../config/env';
 const ALGORITHM = 'aes-256-gcm';
 const IV_LENGTH = 12;
 
+export function isValidEncryptionKey(value: string): boolean {
+  try {
+    return Buffer.from(value, 'base64').length === 32;
+  } catch {
+    return false;
+  }
+}
+
 function getKey(): Buffer {
   const key = Buffer.from(env.ENCRYPTION_KEY, 'base64');
   if (key.length !== 32) {

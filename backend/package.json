@@ -6,10 +6,12 @@
   "scripts": {
     "dev": "tsx watch src/server.ts",
     "build": "tsc",
+    "build:prod": "tsc -p tsconfig.prod.json",
     "start": "node dist/server.js",
     "seed": "tsx src/scripts/seed-admin.ts",
     "seed:prod": "node dist/scripts/seed-admin.js",
-    "sync:mediamtx": "tsx src/scripts/sync-mediamtx.ts"
+    "sync:mediamtx": "tsx src/scripts/sync-mediamtx.ts",
+    "sync:mediamtx:prod": "node dist/scripts/sync-mediamtx.js"
   },
   "keywords": [],
   "author": "Carvingsoft Technologies",

@@ -9,15 +9,21 @@ function sanitizeRtspSourceConfigForAdmin(encryptedSourceConfig) {
     if (!encryptedSourceConfig) {
         return undefined;
     }
-    const config = (0, encryption_service_1.decryptJson)(encryptedSourceConfig);
-    return {
-        host: config.host,
-        port: config.port,
-        username: config.username,
-        channel: config.channel,
-        subtype: config.subtype,
-        customPath: config.customPath,
-    };
+    try {
+        const config = (0, encryption_service_1.decryptJson)(encryptedSourceConfig);
+        return {
+            host: config.host,
+            port: config.port,
+            username: config.username,
+            channel: config.channel,
+            subtype: config.subtype,
+            customPath: config.customPath,
+        };
+    }
+    catch {
+        // Wrong ENCRYPTION_KEY or corrupted payload — do not fail the whole request
+        return { credentialsUnavailable: true };
+    }
 }
 function sanitizeCamera(camera) {
     return {

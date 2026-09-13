@@ -20,6 +20,13 @@ const site_validator_1 = require("../validators/site.validator");
 const encryption_service_2 = require("../services/encryption.service");
 exports.camerasRouter = (0, express_1.Router)();
 exports.camerasRouter.use(auth_middleware_1.authenticate, (0, auth_middleware_1.authorize)('super_admin', 'admin'));
+function mapEncryptionError(error) {
+    const message = error instanceof Error ? error.message : 'Encryption failed';
+    if (message.includes('ENCRYPTION_KEY')) {
+        return new errors_1.AppError(503, 'Server ENCRYPTION_KEY is invalid. Set a base64-encoded 32-byte key in backend/.env (openssl rand -base64 32).');
+    }
+    return new errors_1.AppError(500, message);
+}
 function mapMediaMtxSyncError(error) {
     if (error instanceof errors_1.AppError) {
         return error;
@@ -28,14 +35,17 @@ function mapMediaMtxSyncError(error) {
     if (message.includes('fetch failed') || message.includes('ECONNREFUSED')) {
         return new errors_1.AppError(503, 'MediaMTX is not reachable. Ensure the MediaMTX service is running.');
     }
+    if (message.includes('cannot be decrypted') || message.includes('source configuration is required')) {
+        return new errors_1.AppError(400, message);
+    }
     return new errors_1.AppError(502, `Failed to sync camera stream with MediaMTX: ${message}`);
 }
 exports.camerasRouter.get('/sites/:id/cameras', (0, validate_middleware_1.validateParams)(site_validator_1.siteIdParamSchema), async (req, res, next) => {
     try {
-        const siteId = (0, params_1.paramString)(req, 'id');
-        await (0, site_repository_1.getSiteById)(siteId);
-        const cameras = await camera_model_1.Camera.find({ siteId }).sort({ sortOrder: 1, createdAt: 1 });
-        res.json(cameras.map(sanitize_1.sanitizeCameraAdmin));
+        const site = await (0, site_repository_1.getSiteById)((0, params_1.paramString)(req, 'id'));
+        const cameras = await camera_model_1.Camera.find({ siteId: site._id }).sort({ sortOrder: 1, createdAt: 1 });
+        // List view does not need RTSP credentials — avoid decrypt failures breaking the page
+        res.json(cameras.map(sanitize_1.sanitizeCamera));
     }
     catch (error) {
         next(error);
@@ -57,9 +67,15 @@ exports.camerasRouter.post('/sites/:id/cameras', (0, validate_middleware_1.valid
             throw new errors_1.AppError(400, 'RTSP password is required when creating a camera');
         }
         const mediamtxPath = (0, rtsp_builder_service_1.buildMediamtxPath)(site.slug, cameraKey);
-        const encryptedSourceConfig = body.sourceConfig
-            ? (0, encryption_service_1.encryptJson)(body.sourceConfig)
-            : undefined;
+        let encryptedSourceConfig;
+        if (body.sourceConfig) {
+            try {
+                encryptedSourceConfig = (0, encryption_service_1.encryptJson)(body.sourceConfig);
+            }
+            catch (error) {
+                throw mapEncryptionError(error);
+            }
+        }
         const camera = await camera_model_1.Camera.create({
             siteId: site._id,
             name: body.name,
@@ -160,7 +176,12 @@ exports.camerasRouter.put('/:id', (0, validate_middleware_1.validateParams)(came
             if (camera.sourceType === 'rtsp' && !merged.password) {
                 throw new errors_1.AppError(400, 'RTSP password is required');
             }
-            camera.encryptedSourceConfig = (0, encryption_service_1.encryptJson)(merged);
+            try {
+                camera.encryptedSourceConfig = (0, encryption_service_1.encryptJson)(merged);
+            }
+            catch (error) {
+                throw mapEncryptionError(error);
+            }
             camera.channelNumber = merged.channel;
         }
         if (!camera.isActive) {

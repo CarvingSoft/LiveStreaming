@@ -1,13 +1,16 @@
-import { connectDatabase } from '../config/database';
+import { connectDatabase, disconnectDatabase } from '../config/database';
 import { syncAllCamerasToMediaMtx } from '../services/mediamtx-sync.service';
 
 async function main() {
   await connectDatabase();
-  await syncAllCamerasToMediaMtx();
-  process.exit(0);
+  try {
+    await syncAllCamerasToMediaMtx();
+  } finally {
+    await disconnectDatabase();
+  }
 }
 
 main().catch((error) => {
   console.error(error);
-  process.exit(1);
+  process.exitCode = 1;
 });

@@ -1,5 +1,6 @@
 import dotenv from 'dotenv';
 import { z } from 'zod';
+import { isValidEncryptionKey } from '../services/encryption.service';
 
 dotenv.config();
 
@@ -24,6 +25,15 @@ const envSchema = z.object({
   SEED_ADMIN_EMAIL: z.string().email().optional(),
   SEED_ADMIN_PASSWORD: z.string().min(8).optional(),
 }).superRefine((data, ctx) => {
+  if (!isValidEncryptionKey(data.ENCRYPTION_KEY)) {
+    ctx.addIssue({
+      code: 'custom',
+      path: ['ENCRYPTION_KEY'],
+      message:
+        'ENCRYPTION_KEY must be a base64-encoded 32-byte key (generate with: openssl rand -base64 32)',
+    });
+  }
+
   if (data.NODE_ENV !== 'production') {
     return;
   }
@@ -52,6 +62,7 @@ const envSchema = z.object({
       message: 'CORS_ORIGINS must include FRONTEND_URL in production',
     });
   }
+
 });
 
 const parsed = envSchema.safeParse(process.env);

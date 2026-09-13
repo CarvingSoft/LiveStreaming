@@ -43,7 +43,7 @@ function createApp() {
                 callback(null, true);
                 return;
             }
-            callback(new Error(`Origin ${origin} is not allowed by CORS`));
+            callback(null, false);
         },
         credentials: true,
     }));
