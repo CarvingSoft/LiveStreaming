@@ -1,8 +1,8 @@
 import { withCookieHeader } from './hls-cookie-jar';
 
 const DEFAULT_TIMEOUT_MS = 30_000;
-const HLS_MANIFEST_TIMEOUT_MS = 12_000;
-const HLS_READY_RETRY_MS = 15_000;
+const HLS_MANIFEST_TIMEOUT_MS = 25_000;
+const HLS_READY_RETRY_MS = 45_000;
 const HLS_READY_RETRY_INTERVAL_MS = 2_000;
 
 export interface MediaMtxFetchOptions {

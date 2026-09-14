@@ -57,7 +57,7 @@ streamRouter.post('/whep/:token', async (req, res, next) => {
   }
 });
 
-const HLS_PROXY_MAX_WAIT_MS = 30_000;
+const HLS_PROXY_MAX_WAIT_MS = 45_000;
 
 async function fetchHlsFromMediaMtx(
   token: string,
@@ -117,7 +117,7 @@ function mapHlsFetchError(status: number): AppError {
 
   return new AppError(
     503,
-    'Stream is still starting. Wait a few seconds and retry — RTSP pull from the DVR may take up to 30s after idle.',
+    'HLS manifest not ready from MediaMTX. RTSP may be connected but HLS remux is still starting — retry in a few seconds. If this persists, set camera stream type to Sub stream (H264) in admin or run bash deploy/restart-mediamtx.sh after git pull.',
   );
 }
 

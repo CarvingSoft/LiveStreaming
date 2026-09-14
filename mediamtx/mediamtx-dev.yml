@@ -15,6 +15,8 @@ hlsAddress: :8888
 
 # Match production — LL-HLS cookie redirects break the HTTP backend HLS proxy
 hlsVariant: mpegts
+hlsAlwaysRemux: true
+hlsSegmentDuration: 2s
 
 # Allow browser access from localhost and LAN IPs during development
 webrtcAllowOrigins: ['*']

@@ -44,6 +44,12 @@ else
   bad "mediamtx.yml missing hlsVariant: mpegts — bash deploy/restart-mediamtx.sh"
 fi
 
+if grep -q 'hlsAlwaysRemux: true' /opt/mediamtx/mediamtx.yml 2>/dev/null; then
+  ok "mediamtx.yml has hlsAlwaysRemux: true"
+else
+  bad "mediamtx.yml missing hlsAlwaysRemux: true — bash deploy/restart-mediamtx.sh"
+fi
+
 RUNNING_VARIANT="$(curl -sf http://127.0.0.1:9997/v3/config/global/get 2>/dev/null | grep -o '"hlsVariant":"[^"]*"' | head -1 || true)"
 if [[ "${RUNNING_VARIANT}" == '"hlsVariant":"mpegts"' ]]; then
   ok "running MediaMTX hlsVariant is mpegts"

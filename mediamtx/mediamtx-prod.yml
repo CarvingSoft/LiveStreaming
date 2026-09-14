@@ -21,6 +21,9 @@ hlsAddress: :8888
 
 # mpegts avoids LL-HLS Secure cookie redirects that break the HTTP backend proxy
 hlsVariant: mpegts
+# Pre-mux HLS while RTSP is live — avoids 30s+ first-viewer delay (especially H265)
+hlsAlwaysRemux: true
+hlsSegmentDuration: 2s
 
 webrtcAllowOrigins: ['https://live.carvingsoft.com']
 
