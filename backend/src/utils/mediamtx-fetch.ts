@@ -1,12 +1,26 @@
 import { withCookieHeader } from './hls-cookie-jar';
 
 const DEFAULT_TIMEOUT_MS = 30_000;
-const HLS_READY_RETRY_MS = 25_000;
+const HLS_MANIFEST_TIMEOUT_MS = 45_000;
+const HLS_READY_RETRY_MS = 60_000;
 const HLS_READY_RETRY_INTERVAL_MS = 2_000;
 
 export interface MediaMtxFetchOptions {
   init?: RequestInit;
   cookie?: string;
+}
+
+function isRetryableFetchError(error: unknown): boolean {
+  if (!(error instanceof Error)) {
+    return false;
+  }
+
+  return (
+    error.name === 'AbortError' ||
+    error.message.includes('fetch failed') ||
+    error.message.includes('ECONNREFUSED') ||
+    error.message.includes('ETIMEDOUT')
+  );
 }
 
 /**
@@ -18,7 +32,8 @@ export async function fetchFromMediaMtx(
   options: MediaMtxFetchOptions = {},
 ): Promise<Response> {
   const init = withCookieHeader(options.init ?? {}, options.cookie);
-  const signal = init.signal ?? AbortSignal.timeout(DEFAULT_TIMEOUT_MS);
+  const timeoutMs = isHlsManifest(url) ? HLS_MANIFEST_TIMEOUT_MS : DEFAULT_TIMEOUT_MS;
+  const signal = init.signal ?? AbortSignal.timeout(timeoutMs);
 
   if (isHlsManifest(url) && !url.includes('cookieCheck=1')) {
     const withCookieCheck = await fetch(appendCookieCheck(url), {
@@ -55,30 +70,47 @@ export async function fetchHlsManifestFromMediaMtx(
 ): Promise<Response> {
   const started = Date.now();
   let lastResponse: Response | undefined;
+  let lastError: Error | undefined;
 
   while (Date.now() - started < HLS_READY_RETRY_MS) {
-    const response = await fetchFromMediaMtx(url, options);
-    if (response.ok) {
-      return response;
-    }
+    try {
+      const response = await fetchFromMediaMtx(url, options);
+      if (response.ok) {
+        return response;
+      }
 
-    lastResponse = response;
+      lastResponse = response;
+      lastError = undefined;
 
-    // Only retry while the path/stream is still starting
-    if (
-      response.status !== 404 &&
-      response.status !== 401 &&
-      response.status !== 502 &&
-      response.status !== 503 &&
-      response.status !== 500
-    ) {
-      break;
+      if (
+        response.status !== 404 &&
+        response.status !== 401 &&
+        response.status !== 502 &&
+        response.status !== 503 &&
+        response.status !== 500
+      ) {
+        break;
+      }
+    } catch (error) {
+      if (!isRetryableFetchError(error)) {
+        throw error;
+      }
+
+      lastError = error instanceof Error ? error : new Error(String(error));
     }
 
     await sleep(HLS_READY_RETRY_INTERVAL_MS);
   }
 
-  return lastResponse ?? (await fetchFromMediaMtx(url, options));
+  if (lastResponse) {
+    return lastResponse;
+  }
+
+  if (lastError) {
+    throw lastError;
+  }
+
+  return fetchFromMediaMtx(url, options);
 }
 
 function isHlsManifest(url: string): boolean {
