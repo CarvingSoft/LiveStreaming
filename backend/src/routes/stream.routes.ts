@@ -1,10 +1,15 @@
 import { Router } from 'express';
-import { env } from '../config/env';
 import { playbackService } from '../services/playback.service';
 import { mediaMtxService } from '../services/mediamtx.service';
 import { AppError } from '../utils/errors';
-import { paramString } from '../utils/params';
+import {
+  collectSetCookie,
+  getHlsCookie,
+  mergeCookieHeader,
+  setHlsCookie,
+} from '../utils/hls-cookie-jar';
 import { fetchFromMediaMtx, fetchHlsManifestFromMediaMtx } from '../utils/mediamtx-fetch';
+import { paramString } from '../utils/params';
 import { getRequestApiBase } from '../utils/request-base';
 
 export const streamRouter = Router();
@@ -52,22 +57,76 @@ streamRouter.post('/whep/:token', async (req, res, next) => {
   }
 });
 
+async function fetchHlsFromMediaMtx(
+  token: string,
+  session: string | undefined,
+  mediamtxPath: string,
+  file: string,
+): Promise<Response> {
+  const hlsUrl = mediaMtxService.getHlsInternalUrl(mediamtxPath, file);
+  const fetchOptions = { cookie: getHlsCookie(token, session) };
+  const isManifest = file.endsWith('.m3u8');
+
+  let response = isManifest
+    ? await fetchHlsManifestFromMediaMtx(hlsUrl, fetchOptions)
+    : await fetchFromMediaMtx(hlsUrl, fetchOptions);
+
+  if (!response.ok && response.status === 401 && isManifest && file !== 'index.m3u8') {
+    const indexUrl = mediaMtxService.getHlsInternalUrl(mediamtxPath, 'index.m3u8');
+    const indexResponse = await fetchHlsManifestFromMediaMtx(indexUrl, fetchOptions);
+    const bootstrappedCookie = mergeCookieHeader(
+      getHlsCookie(token, session),
+      collectSetCookie(indexResponse),
+    );
+    if (bootstrappedCookie) {
+      setHlsCookie(token, session, bootstrappedCookie);
+      const retryOptions = { cookie: bootstrappedCookie };
+      response = isManifest
+        ? await fetchHlsManifestFromMediaMtx(hlsUrl, retryOptions)
+        : await fetchFromMediaMtx(hlsUrl, retryOptions);
+    }
+  }
+
+  const mergedCookie = mergeCookieHeader(getHlsCookie(token, session), collectSetCookie(response));
+  if (mergedCookie) {
+    setHlsCookie(token, session, mergedCookie);
+  }
+
+  return response;
+}
+
+function mapHlsFetchError(status: number): AppError {
+  if (status === 404) {
+    return new AppError(
+      404,
+      'Stream path not found in MediaMTX. Re-save the camera in admin or run npm run sync:mediamtx:prod.',
+    );
+  }
+
+  if (status === 401) {
+    return new AppError(
+      502,
+      'MediaMTX rejected HLS sub-playlist (401). Run bash deploy/restart-mediamtx.sh and confirm hlsVariant: mpegts in /opt/mediamtx/mediamtx.yml.',
+    );
+  }
+
+  return new AppError(
+    502,
+    'MediaMTX could not serve HLS. Check DVR IP is reachable from EC2, RTSP port/credentials, and mediamtx logs.',
+  );
+}
+
 streamRouter.get('/hls/:token/:file', async (req, res, next) => {
   try {
-    const payload = playbackService.verifyToken(paramString(req, 'token'));
+    const token = paramString(req, 'token');
+    const payload = playbackService.verifyToken(token);
     const wildcard = paramString(req, 'file') || 'index.m3u8';
-    const hlsUrl = mediaMtxService.getHlsInternalUrl(payload.mediamtxPath, wildcard);
+    const session = typeof req.query.session === 'string' ? req.query.session : undefined;
 
-    const response = wildcard.endsWith('.m3u8')
-      ? await fetchHlsManifestFromMediaMtx(hlsUrl)
-      : await fetchFromMediaMtx(hlsUrl);
+    const response = await fetchHlsFromMediaMtx(token, session, payload.mediamtxPath, wildcard);
 
     if (!response.ok) {
-      const hint =
-        response.status === 404
-          ? 'Stream path not found in MediaMTX. Re-save the camera in admin or run npm run sync:mediamtx:prod.'
-          : 'MediaMTX could not serve HLS. Check DVR IP is reachable from EC2 (not a local 192.168.x.x address), RTSP port/credentials, and mediamtx logs.';
-      throw new AppError(response.status === 404 ? 404 : 502, hint);
+      throw mapHlsFetchError(response.status);
     }
 
     const contentType = response.headers.get('content-type') ?? 'application/octet-stream';
@@ -75,7 +134,7 @@ streamRouter.get('/hls/:token/:file', async (req, res, next) => {
 
     if (wildcard.endsWith('.m3u8')) {
       const manifest = bodyBuffer.toString('utf8');
-      const token = paramString(req, 'token');
+      const apiBase = getRequestApiBase(req);
       const rewritten = manifest
         .split('\n')
         .map((line) => {
@@ -83,9 +142,8 @@ streamRouter.get('/hls/:token/:file', async (req, res, next) => {
           if (!trimmed || trimmed.startsWith('#')) {
             return line;
           }
-          const segmentName = trimmed.split('/').pop() ?? trimmed;
-          const apiBase = getRequestApiBase(req);
-          return `${apiBase}/api/stream/hls/${token}/${segmentName}`;
+          const resource = trimmed.split('?')[0]?.split('/').pop() ?? trimmed;
+          return `${apiBase}/api/stream/hls/${token}/${resource}`;
         })
         .join('\n');
       bodyBuffer = Buffer.from(rewritten, 'utf8');

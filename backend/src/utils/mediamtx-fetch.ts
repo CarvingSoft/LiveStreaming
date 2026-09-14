@@ -1,6 +1,13 @@
+import { withCookieHeader } from './hls-cookie-jar';
+
 const DEFAULT_TIMEOUT_MS = 30_000;
 const HLS_READY_RETRY_MS = 25_000;
 const HLS_READY_RETRY_INTERVAL_MS = 2_000;
+
+export interface MediaMtxFetchOptions {
+  init?: RequestInit;
+  cookie?: string;
+}
 
 /**
  * Fetch from MediaMTX over internal HTTP. Handles LL-HLS cookie redirects when
@@ -8,8 +15,9 @@ const HLS_READY_RETRY_INTERVAL_MS = 2_000;
  */
 export async function fetchFromMediaMtx(
   url: string,
-  init: RequestInit = {},
+  options: MediaMtxFetchOptions = {},
 ): Promise<Response> {
+  const init = withCookieHeader(options.init ?? {}, options.cookie);
   const signal = init.signal ?? AbortSignal.timeout(DEFAULT_TIMEOUT_MS);
 
   if (isHlsManifest(url) && !url.includes('cookieCheck=1')) {
@@ -41,12 +49,15 @@ export async function fetchFromMediaMtx(
 /**
  * Fetch an HLS manifest, retrying while MediaMTX pulls the RTSP source on demand.
  */
-export async function fetchHlsManifestFromMediaMtx(url: string): Promise<Response> {
+export async function fetchHlsManifestFromMediaMtx(
+  url: string,
+  options: MediaMtxFetchOptions = {},
+): Promise<Response> {
   const started = Date.now();
   let lastResponse: Response | undefined;
 
   while (Date.now() - started < HLS_READY_RETRY_MS) {
-    const response = await fetchFromMediaMtx(url);
+    const response = await fetchFromMediaMtx(url, options);
     if (response.ok) {
       return response;
     }
@@ -54,14 +65,20 @@ export async function fetchHlsManifestFromMediaMtx(url: string): Promise<Respons
     lastResponse = response;
 
     // Only retry while the path/stream is still starting
-    if (response.status !== 404 && response.status !== 502 && response.status !== 503 && response.status !== 500) {
+    if (
+      response.status !== 404 &&
+      response.status !== 401 &&
+      response.status !== 502 &&
+      response.status !== 503 &&
+      response.status !== 500
+    ) {
       break;
     }
 
     await sleep(HLS_READY_RETRY_INTERVAL_MS);
   }
 
-  return lastResponse ?? (await fetchFromMediaMtx(url));
+  return lastResponse ?? (await fetchFromMediaMtx(url, options));
 }
 
 function isHlsManifest(url: string): boolean {
