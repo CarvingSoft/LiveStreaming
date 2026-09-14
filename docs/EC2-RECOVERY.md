@@ -4,6 +4,31 @@ Use when cameras cannot be added, streams fail, or MediaMTX shows `path not foun
 
 **EC2 repo path:** `/home/ubuntu/LiveServer/LiveStreaming`
 
+## Align EC2 with local dev (parity check)
+
+Local fixes that **must** also be on EC2:
+
+| Fix | Local (`mediamtx-dev.yml`) | EC2 (`/opt/mediamtx/mediamtx.yml`) |
+|-----|---------------------------|-------------------------------------|
+| HLS variant | `hlsVariant: mpegts` | same (not `lowLatency`) |
+| RTSP mode | `sourceOnDemand: false` | same + re-sync paths |
+| MediaMTX URLs in `.env` | `http://127.0.0.1:9997/8888/8889` | same in `backend/.env` |
+| Path sync | backend startup + `npm run sync:mediamtx` | `npm run sync:mediamtx:prod` |
+| API process | `npm run dev` | PM2 with `--cwd backend`, no orphan on :5280 |
+
+One command to verify all of the above on EC2:
+
+```bash
+cd /home/ubuntu/LiveServer/LiveStreaming
+bash deploy/verify-streaming-config.sh site-kochi-rto-kochi
+```
+
+If anything fails, run full deploy:
+
+```bash
+bash deploy/update-from-git.sh
+```
+
 ## HLS stream 502 (`main_stream.m3u8`)
 
 Playback token works but video fails — MediaMTX cannot pull RTSP or the path is missing.

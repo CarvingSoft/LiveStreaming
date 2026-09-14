@@ -66,7 +66,8 @@ export class PlaybackService {
     apiPublicBase?: string;
   }): Promise<PlaybackSession> {
     if (input.isActive) {
-      await this.warmUpHlsPath(input.mediamtxPath);
+      // Non-blocking — warm-up must not delay the playback API (nginx/browser timeouts).
+      void this.warmUpHlsPath(input.mediamtxPath);
     }
 
     const pathStatus = await mediaMtxService.getPath(input.mediamtxPath);

@@ -86,3 +86,10 @@ if ! grep -q '"encryptionKeyOk":true' <<< "${HEALTH_JSON}"; then
   bash "${REPO_ROOT}/deploy/diagnose-production.sh" || true
   exit 1
 fi
+
+echo ""
+echo "==> Streaming config parity (local dev fixes)"
+bash "${REPO_ROOT}/deploy/verify-streaming-config.sh" || {
+  echo "ERROR: Streaming config check failed — see failures above."
+  exit 1
+}

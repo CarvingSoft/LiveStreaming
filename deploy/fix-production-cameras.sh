@@ -35,6 +35,11 @@ bash "${REPO_ROOT}/deploy/restart-mediamtx.sh"
 echo ""
 echo "==> 5. Restart API (loads .env from backend/)"
 pm2 delete cctv-api 2>/dev/null || true
+if ss -tlnp 2>/dev/null | grep -q ':5280'; then
+  echo "    Freeing orphan process on port 5280..."
+  fuser -k 5280/tcp 2>/dev/null || true
+  sleep 2
+fi
 pm2 start "${BACKEND_DIR}/dist/server.js" --name cctv-api --cwd "${BACKEND_DIR}"
 pm2 save
 
@@ -49,6 +54,10 @@ echo "==> 7. Health"
 curl -sf "http://127.0.0.1:5280/api/health" | head -c 400 || true
 echo ""
 curl -s "http://127.0.0.1:9997/v3/config/paths/list" | grep -o '"itemCount":[0-9]*' || true
+
+echo ""
+echo "==> 8. Verify streaming config (parity with local dev)"
+bash "${REPO_ROOT}/deploy/verify-streaming-config.sh" || true
 
 echo ""
 echo "Done. Add cameras at: https://live.carvingsoft.com/admin"
