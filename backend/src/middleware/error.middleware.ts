@@ -42,6 +42,14 @@ export function errorHandler(err: unknown, _req: Request, res: Response, _next: 
 
   const message = err instanceof Error ? err.message : String(err);
 
+  if (message.includes('fetch failed') || message.includes('ECONNREFUSED')) {
+    res.status(503).json({
+      message:
+        'MediaMTX HLS is unreachable from the API. Check systemctl status mediamtx, port 8888, and MEDIAMTX_HLS_URL=http://127.0.0.1:8888 in backend/.env.',
+    });
+    return;
+  }
+
   if (message.includes('ENCRYPTION_KEY')) {
     res.status(503).json({
       message:

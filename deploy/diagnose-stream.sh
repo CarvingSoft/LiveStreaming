@@ -2,8 +2,18 @@
 # Diagnose HLS 502 on production (run on EC2)
 set -euo pipefail
 
+REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 MEDIAMTX_PATH="${1:-site-kochi-entrance}"
 
+echo "==> MediaMTX service + ports"
+systemctl is-active mediamtx 2>/dev/null || echo "  FAIL mediamtx systemd unit not active"
+ss -tlnp 2>/dev/null | grep -E ':8888|:9997' || echo "  FAIL ports 8888/9997 not listening"
+
+echo ""
+echo "==> backend/.env MediaMTX URLs"
+grep '^MEDIAMTX_' "${REPO_ROOT}/backend/.env" 2>/dev/null || echo "  WARN backend/.env not readable"
+
+echo ""
 echo "==> MediaMTX config"
 grep hlsVariant /opt/mediamtx/mediamtx.yml || echo "  WARN hlsVariant not found"
 
