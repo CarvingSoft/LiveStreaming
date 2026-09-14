@@ -131,6 +131,10 @@ streamRouter.get('/hls/:token/:file', async (req, res, next) => {
     const response = await fetchHlsFromMediaMtx(token, session, payload.mediamtxPath, wildcard);
 
     if (!response.ok) {
+      const detail = await response.clone().text().catch(() => '');
+      console.warn(
+        `HLS proxy ${wildcard} for ${payload.mediamtxPath} failed: ${response.status} ${detail.slice(0, 200)}`,
+      );
       throw mapHlsFetchError(response.status);
     }
 

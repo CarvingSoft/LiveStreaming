@@ -41,7 +41,8 @@ export class MediaMtxService {
 
     const body = JSON.stringify({
       source,
-      sourceOnDemand: true,
+      // Keep RTSP connected in production — on-demand cold starts cause HLS 502/timeouts.
+      sourceOnDemand: false,
       rtspTransport: 'tcp',
     });
 

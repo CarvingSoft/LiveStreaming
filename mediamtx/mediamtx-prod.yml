@@ -25,9 +25,8 @@ hlsVariant: mpegts
 webrtcAllowOrigins: ['https://live.carvingsoft.com']
 
 pathDefaults:
-  sourceOnDemand: true
-  sourceOnDemandStartTimeout: 30s
-  sourceOnDemandCloseAfter: 120s
+  # Always-on RTSP — avoids 15s+ HLS cold-start failures on first viewer
+  sourceOnDemand: false
   rtspTransport: tcp
 
 paths: {}
