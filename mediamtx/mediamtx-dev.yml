@@ -20,9 +20,7 @@ hlsVariant: mpegts
 webrtcAllowOrigins: ['*']
 
 pathDefaults:
-  sourceOnDemand: true
-  sourceOnDemandStartTimeout: 10s
-  sourceOnDemandCloseAfter: 10s
+  sourceOnDemand: false
   rtspTransport: tcp
 
 paths: {}

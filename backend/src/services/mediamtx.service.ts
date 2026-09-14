@@ -35,23 +35,32 @@ export class MediaMtxService {
     }
   }
 
+  /** Config API — use for add vs patch (avoids noisy runtime "path not found" logs). */
+  async hasConfigPath(pathName: string): Promise<boolean> {
+    const encodedName = encodeURIComponent(pathName);
+    const response = await fetch(`${this.apiBase}/v3/config/paths/get/${encodedName}`, {
+      signal: AbortSignal.timeout(5000),
+    });
+    return response.ok;
+  }
+
   async upsertPath(pathName: string, source: string): Promise<void> {
     const encodedName = encodeURIComponent(pathName);
-    const existing = await this.getPath(pathName);
+    const exists = await this.hasConfigPath(pathName);
 
     const body = JSON.stringify({
       source,
-      // Keep RTSP connected in production — on-demand cold starts cause HLS 502/timeouts.
+      // Always-on RTSP — on-demand cold starts cause HLS 502/timeouts in prod and dev.
       sourceOnDemand: false,
       rtspTransport: 'tcp',
     });
 
-    const url = existing
+    const url = exists
       ? `${this.apiBase}/v3/config/paths/patch/${encodedName}`
       : `${this.apiBase}/v3/config/paths/add/${encodedName}`;
 
     const response = await fetch(url, {
-      method: existing ? 'PATCH' : 'POST',
+      method: exists ? 'PATCH' : 'POST',
       headers: { 'Content-Type': 'application/json' },
       body,
       signal: AbortSignal.timeout(10000),

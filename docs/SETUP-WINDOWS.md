@@ -35,7 +35,18 @@ cd e:\Projects\LiveStreaming\mediamtx
 
 You should see a log line like `[API] listener opened on 127.0.0.1:9997`.
 
-**Important:** Always start with `mediamtx-dev.yml` (not the full `mediamtx.yml` template). The backend requires the Control API on port 9997 and `hlsVariant: mpegts`.
+**Important:** Always start with `mediamtx-dev.yml` (not `mediamtx-prod.yml` or the full `mediamtx.yml` template).
+
+| Config file | Use on |
+|-------------|--------|
+| `mediamtx-dev.yml` | Windows / local dev only |
+| `mediamtx-prod.yml` | EC2 only (via `deploy/restart-mediamtx.sh`) |
+
+Never run `mediamtx-prod.yml` locally — it sets `webrtcAllowOrigins` to production only and breaks `localhost:4200` WebRTC.
+
+The backend requires the Control API on port 9997 and `hlsVariant: mpegts`.
+
+A single `[API] path not found` line when the backend starts is normal (it checks then registers paths). If streaming fails, restart the backend after MediaMTX and run `npm run sync:mediamtx`.
 
 When MediaMTX restarts, camera paths are cleared. The backend re-syncs them automatically on startup. To sync manually:
 
