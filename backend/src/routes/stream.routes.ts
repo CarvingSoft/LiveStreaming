@@ -57,6 +57,8 @@ streamRouter.post('/whep/:token', async (req, res, next) => {
   }
 });
 
+const HLS_PROXY_MAX_WAIT_MS = 15_000;
+
 async function fetchHlsFromMediaMtx(
   token: string,
   session: string | undefined,
@@ -64,7 +66,10 @@ async function fetchHlsFromMediaMtx(
   file: string,
 ): Promise<Response> {
   const hlsUrl = mediaMtxService.getHlsInternalUrl(mediamtxPath, file);
-  const fetchOptions = { cookie: getHlsCookie(token, session) };
+  const fetchOptions = {
+    cookie: getHlsCookie(token, session),
+    maxWaitMs: HLS_PROXY_MAX_WAIT_MS,
+  };
   const isManifest = file.endsWith('.m3u8');
 
   let response = isManifest
@@ -73,7 +78,7 @@ async function fetchHlsFromMediaMtx(
 
   if (!response.ok && response.status === 401 && isManifest && file !== 'index.m3u8') {
     const indexUrl = mediaMtxService.getHlsInternalUrl(mediamtxPath, 'index.m3u8');
-    const indexResponse = await fetchHlsManifestFromMediaMtx(indexUrl, fetchOptions);
+    const indexResponse = await fetchFromMediaMtx(indexUrl, fetchOptions);
     const bootstrappedCookie = mergeCookieHeader(
       getHlsCookie(token, session),
       collectSetCookie(indexResponse),

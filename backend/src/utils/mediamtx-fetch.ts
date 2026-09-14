@@ -1,13 +1,15 @@
 import { withCookieHeader } from './hls-cookie-jar';
 
 const DEFAULT_TIMEOUT_MS = 30_000;
-const HLS_MANIFEST_TIMEOUT_MS = 45_000;
-const HLS_READY_RETRY_MS = 60_000;
+const HLS_MANIFEST_TIMEOUT_MS = 12_000;
+const HLS_READY_RETRY_MS = 15_000;
 const HLS_READY_RETRY_INTERVAL_MS = 2_000;
 
 export interface MediaMtxFetchOptions {
   init?: RequestInit;
   cookie?: string;
+  /** Cap total wait for manifest polling (browser requests must not block too long). */
+  maxWaitMs?: number;
 }
 
 function isRetryableFetchError(error: unknown): boolean {
@@ -68,11 +70,12 @@ export async function fetchHlsManifestFromMediaMtx(
   url: string,
   options: MediaMtxFetchOptions = {},
 ): Promise<Response> {
+  const maxWaitMs = options.maxWaitMs ?? HLS_READY_RETRY_MS;
   const started = Date.now();
   let lastResponse: Response | undefined;
   let lastError: Error | undefined;
 
-  while (Date.now() - started < HLS_READY_RETRY_MS) {
+  while (Date.now() - started < maxWaitMs) {
     try {
       const response = await fetchFromMediaMtx(url, options);
       if (response.ok) {

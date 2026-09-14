@@ -199,7 +199,13 @@ export class CameraPlayerComponent implements AfterViewInit, OnDestroy {
       await new Promise<void>((resolve, reject) => {
         this.hls = new Hls({
           enableWorker: true,
-          lowLatencyMode: !environment.production,
+          lowLatencyMode: false,
+          manifestLoadingTimeOut: 20_000,
+          manifestLoadingMaxRetry: 6,
+          levelLoadingTimeOut: 20_000,
+          levelLoadingMaxRetry: 6,
+          fragLoadingTimeOut: 20_000,
+          fragLoadingMaxRetry: 6,
         });
         this.hls.loadSource(hlsUrl);
         this.hls.attachMedia(video);
@@ -208,7 +214,11 @@ export class CameraPlayerComponent implements AfterViewInit, OnDestroy {
           this.status.set('online');
           resolve();
         });
-        this.hls.on(Hls.Events.ERROR, () => reject(new Error('HLS playback failed')));
+        this.hls.on(Hls.Events.ERROR, (_event, data) => {
+          if (data.fatal) {
+            reject(new Error('HLS playback failed'));
+          }
+        });
       });
       return;
     }

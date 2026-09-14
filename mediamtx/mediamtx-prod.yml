@@ -27,7 +27,7 @@ webrtcAllowOrigins: ['https://live.carvingsoft.com']
 pathDefaults:
   sourceOnDemand: true
   sourceOnDemandStartTimeout: 30s
-  sourceOnDemandCloseAfter: 10s
+  sourceOnDemandCloseAfter: 120s
   rtspTransport: tcp
 
 paths: {}
