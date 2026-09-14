@@ -11,7 +11,9 @@
     "seed": "tsx src/scripts/seed-admin.ts",
     "seed:prod": "node dist/scripts/seed-admin.js",
     "sync:mediamtx": "tsx src/scripts/sync-mediamtx.ts",
-    "sync:mediamtx:prod": "node dist/scripts/sync-mediamtx.js"
+    "sync:mediamtx:prod": "node dist/scripts/sync-mediamtx.js",
+    "diagnose:rtsp": "tsx src/scripts/diagnose-rtsp.ts",
+    "diagnose:rtsp:prod": "node dist/scripts/diagnose-rtsp.js"
   },
   "keywords": [],
   "author": "Carvingsoft Technologies",

@@ -116,8 +116,11 @@ export class MediaMtxService {
     }
 
     const sourceReady = pathStatus.sourceReady ?? pathStatus.available;
+    const trackCount = Array.isArray(pathStatus.tracks) ? pathStatus.tracks.length : 0;
+    const bytesReceived = pathStatus.bytesReceived ?? 0;
+    const hasVideo = trackCount > 0 || bytesReceived > 0;
 
-    if (pathStatus.ready && sourceReady !== false) {
+    if (pathStatus.ready && sourceReady !== false && hasVideo) {
       return 'online';
     }
 

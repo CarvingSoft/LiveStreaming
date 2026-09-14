@@ -29,6 +29,32 @@ If anything fails, run full deploy:
 bash deploy/update-from-git.sh
 ```
 
+## MediaMTX cannot pull RTSP from DVR (bytesReceived: 0)
+
+TCP to the DVR may work (`nc -zv 59.96.60.54 11554`) while RTSP still fails (wrong port in admin, bad password, or wrong channel).
+
+```bash
+cd /home/ubuntu/LiveServer/LiveStreaming
+bash deploy/diagnose-rtsp.sh site-kochi-rto-kochi
+```
+
+The script checks: stored host/port, TCP reachability, MediaMTX path config, `bytesReceived` / tracks, and HLS `#EXTM3U`. It re-syncs paths with `--fix`.
+
+**Admin camera settings for internet RTSP (CP Plus):**
+
+| Field | Value |
+|-------|-------|
+| Host | DVR **public** IP (e.g. `59.96.60.54`) — not `192.168.x.x` |
+| Port | Forwarded port (often **11554**, not 1154 or LAN 554) |
+| Username / password | Re-enter and Save after any ENCRYPTION_KEY change |
+
+After fixing admin, run:
+
+```bash
+cd backend && npm run sync:mediamtx:prod
+bash deploy/diagnose-rtsp.sh site-kochi-rto-kochi
+```
+
 ## HLS stream 502 (`main_stream.m3u8`)
 
 Playback token works but video fails — MediaMTX cannot pull RTSP or the path is missing.

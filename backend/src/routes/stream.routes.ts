@@ -57,7 +57,7 @@ streamRouter.post('/whep/:token', async (req, res, next) => {
   }
 });
 
-const HLS_PROXY_MAX_WAIT_MS = 15_000;
+const HLS_PROXY_MAX_WAIT_MS = 30_000;
 
 async function fetchHlsFromMediaMtx(
   token: string,
