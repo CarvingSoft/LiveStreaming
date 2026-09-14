@@ -20,6 +20,7 @@ import {
 } from '../validators/camera.validator';
 import { siteIdParamSchema } from '../validators/site.validator';
 import { decryptJson } from '../services/encryption.service';
+import { assertProductionRtspHost } from '../utils/rtsp-config';
 
 export const camerasRouter = Router();
 
@@ -96,6 +97,10 @@ camerasRouter.post(
 
       if (body.sourceType === 'rtsp' && !body.sourceConfig?.password) {
         throw new AppError(400, 'RTSP password is required when creating a camera');
+      }
+
+      if (body.sourceType === 'rtsp' && body.sourceConfig) {
+        assertProductionRtspHost(body.sourceConfig);
       }
 
       const mediamtxPath = buildMediamtxPath(site.slug, cameraKey);
@@ -226,6 +231,10 @@ camerasRouter.put(
 
         if (camera.sourceType === 'rtsp' && !merged.password) {
           throw new AppError(400, 'RTSP password is required');
+        }
+
+        if (camera.sourceType === 'rtsp') {
+          assertProductionRtspHost(merged);
         }
 
         try {

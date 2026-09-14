@@ -8,6 +8,7 @@ import { mediaMtxService } from '../services/mediamtx.service';
 import { buildRtspUrl } from '../services/rtsp-builder.service';
 import { syncCameraToMediaMtx } from '../services/mediamtx-sync.service';
 import { RtspSourceConfig } from '../types';
+import { isPrivateHost } from '../utils/network';
 
 function redactRtspUrl(url: string): string {
   return url.replace(/\/\/([^:/@]+):([^@/]+)@/, '//$1:***@');
@@ -29,17 +30,6 @@ async function tcpCheck(host: string, port: number, timeoutMs = 5000): Promise<b
       resolve(false);
     });
   });
-}
-
-function isPrivateHost(host: string): boolean {
-  if (host.startsWith('192.168.') || host.startsWith('10.') || host.startsWith('127.')) {
-    return true;
-  }
-  if (host.startsWith('172.')) {
-    const second = Number(host.split('.')[1]);
-    return second >= 16 && second <= 31;
-  }
-  return false;
 }
 
 async function fetchJson(url: string): Promise<Record<string, unknown> | null> {
