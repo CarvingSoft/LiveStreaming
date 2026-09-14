@@ -116,8 +116,8 @@ function mapHlsFetchError(status: number): AppError {
   }
 
   return new AppError(
-    502,
-    'MediaMTX could not serve HLS. Check DVR IP is reachable from EC2, RTSP port/credentials, and mediamtx logs.',
+    503,
+    'Stream is still starting. Wait a few seconds and retry — RTSP pull from the DVR may take up to 30s after idle.',
   );
 }
 

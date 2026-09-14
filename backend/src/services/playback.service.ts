@@ -1,6 +1,7 @@
 import jwt from 'jsonwebtoken';
 import { env } from '../config/env';
 import { PlaybackTokenPayload, StreamStatus } from '../types';
+import { fetchHlsManifestFromMediaMtx } from '../utils/mediamtx-fetch';
 import { mediaMtxService } from './mediamtx.service';
 
 export interface PlaybackSession {
@@ -43,6 +44,19 @@ export class PlaybackService {
     };
   }
 
+  private async warmUpHlsPath(mediamtxPath: string): Promise<void> {
+    const hlsUrl = mediaMtxService.getHlsInternalUrl(mediamtxPath, 'index.m3u8');
+    try {
+      const response = await fetchHlsManifestFromMediaMtx(hlsUrl, { maxWaitMs: 20_000 });
+      if (!response.ok) {
+        console.warn(`HLS warm-up for ${mediamtxPath} returned ${response.status}`);
+      }
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'unknown error';
+      console.warn(`HLS warm-up for ${mediamtxPath} failed: ${message}`);
+    }
+  }
+
   async createSession(input: {
     siteSlug: string;
     cameraKey: string;
@@ -51,6 +65,10 @@ export class PlaybackService {
     isActive: boolean;
     apiPublicBase?: string;
   }): Promise<PlaybackSession> {
+    if (input.isActive) {
+      await this.warmUpHlsPath(input.mediamtxPath);
+    }
+
     const pathStatus = await mediaMtxService.getPath(input.mediamtxPath);
     const status = mediaMtxService.mapPathStatus(pathStatus, input.isActive);
     const { token, expiresAt } = this.issueToken({
