@@ -19,6 +19,8 @@ const envSchema = z.object({
   MEDIAMTX_API_URL: z.string().url(),
   MEDIAMTX_WEBRTC_URL: z.string().url(),
   MEDIAMTX_HLS_URL: z.string().url(),
+  /** Shared with MediaMTX hlsCDNSecret — backend sends Authorization: Bearer on HLS fetches. */
+  MEDIAMTX_HLS_CDN_SECRET: z.string().min(8).optional(),
   RTSP_DEFAULT_PATH_TEMPLATE: z.string().default('/cam/realmonitor?channel={channel}&subtype={subtype}'),
   STATUS_POLL_INTERVAL_MS: z.coerce.number().default(15000),
   SEED_ADMIN_NAME: z.string().default('Super Admin'),

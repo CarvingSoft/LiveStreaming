@@ -17,6 +17,8 @@ hlsAddress: :8888
 hlsVariant: fmp4
 hlsAlwaysRemux: true
 hlsSegmentDuration: 2s
+# Must match MEDIAMTX_HLS_CDN_SECRET in backend/.env (see SETUP-WINDOWS.md)
+hlsCDNSecret: "local-hls-cdn-secret-change-me"
 
 # Allow browser access from localhost and LAN IPs during development
 webrtcAllowOrigins: ['*']

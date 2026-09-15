@@ -3,8 +3,13 @@
 set -euo pipefail
 
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 INSTALL_DIR="/opt/mediamtx"
+BACKEND_DIR="${REPO_ROOT}/backend"
 MEDIAMTX_PORTS=(8554 8888 8889 9997)
+
+# shellcheck source=env-utils.sh
+source "${SCRIPT_DIR}/env-utils.sh"
 
 echo "==> Stopping MediaMTX service and stray processes..."
 sudo systemctl stop mediamtx 2>/dev/null || true
@@ -45,6 +50,15 @@ if grep -q 'Global settings' "${INSTALL_DIR}/mediamtx.yml"; then
   echo "ERROR: ${INSTALL_DIR}/mediamtx.yml looks like the full dev template, not mediamtx-prod.yml"
   exit 1
 fi
+
+HLS_CDN_SECRET="$(read_env_var "${BACKEND_DIR}/.env" MEDIAMTX_HLS_CDN_SECRET 2>/dev/null || true)"
+if [[ -z "${HLS_CDN_SECRET}" ]]; then
+  HLS_CDN_SECRET="$(openssl rand -hex 24)"
+  echo "MEDIAMTX_HLS_CDN_SECRET=${HLS_CDN_SECRET}" >> "${BACKEND_DIR}/.env"
+  echo "    Added MEDIAMTX_HLS_CDN_SECRET to backend/.env"
+fi
+sudo sed -i "s/^hlsCDNSecret:.*/hlsCDNSecret: \"${HLS_CDN_SECRET}\"/" "${INSTALL_DIR}/mediamtx.yml"
+echo "    hlsCDNSecret synced from backend/.env"
 
 echo "==> Starting MediaMTX via systemd..."
 sudo systemctl daemon-reload

@@ -5,13 +5,17 @@ import { AppError } from '../utils/errors';
 import {
   collectSetCookie,
   getHlsCookie,
+  getPlaybackHlsSession,
   mergeCookieHeader,
+  rememberPlaybackHlsSession,
   setHlsCookie,
 } from '../utils/hls-cookie-jar';
 import {
   buildMediaMtxHlsUrl,
+  extractMediaMtxHlsSession,
   fetchFromMediaMtx,
   fetchHlsManifestFromMediaMtx,
+  parseSessionFromManifest,
   rewriteHlsManifestForProxy,
 } from '../utils/mediamtx-fetch';
 import { paramString } from '../utils/params';
@@ -70,15 +74,20 @@ async function fetchHlsFromMediaMtx(
   file: string,
   query: Record<string, unknown>,
 ): Promise<Response> {
+  const effectiveQuery = { ...query };
   const sessionKey =
-    typeof query.session === 'string'
-      ? query.session
-      : Array.isArray(query.session) && typeof query.session[0] === 'string'
-        ? query.session[0]
-        : undefined;
+    typeof effectiveQuery.session === 'string'
+      ? effectiveQuery.session
+      : Array.isArray(effectiveQuery.session) && typeof effectiveQuery.session[0] === 'string'
+        ? effectiveQuery.session[0]
+        : getPlaybackHlsSession(token);
+
+  if (sessionKey && !effectiveQuery.session) {
+    effectiveQuery.session = sessionKey;
+  }
 
   const hlsBase = mediaMtxService.getHlsPathBaseUrl(mediamtxPath);
-  const hlsUrl = buildMediaMtxHlsUrl(hlsBase, file, query);
+  const hlsUrl = buildMediaMtxHlsUrl(hlsBase, file, effectiveQuery);
   const fetchOptions = {
     cookie: getHlsCookie(token, sessionKey),
     maxWaitMs: HLS_PROXY_MAX_WAIT_MS,
@@ -157,7 +166,23 @@ streamRouter.get('/hls/:token/:file', async (req, res, next) => {
     if (wildcard.endsWith('.m3u8')) {
       const manifest = bodyBuffer.toString('utf8');
       const apiBase = getRequestApiBase(req);
-      const rewritten = rewriteHlsManifestForProxy(manifest, apiBase, token);
+      const sessionFromQuery =
+        typeof query.session === 'string'
+          ? query.session
+          : parseSessionFromManifest(manifest) ??
+            extractMediaMtxHlsSession(response) ??
+            getPlaybackHlsSession(token);
+
+      if (wildcard === 'index.m3u8' && sessionFromQuery) {
+        rememberPlaybackHlsSession(token, sessionFromQuery);
+      }
+
+      const rewritten = rewriteHlsManifestForProxy(
+        manifest,
+        apiBase,
+        token,
+        sessionFromQuery,
+      );
       bodyBuffer = Buffer.from(rewritten, 'utf8');
     }
 

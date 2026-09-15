@@ -24,6 +24,8 @@ hlsVariant: fmp4
 # Pre-mux HLS while RTSP is live — avoids 30s+ first-viewer delay (especially H265)
 hlsAlwaysRemux: true
 hlsSegmentDuration: 2s
+# Shared secret for backend HLS proxy (set from backend/.env by deploy/restart-mediamtx.sh)
+hlsCDNSecret: ""
 
 webrtcAllowOrigins: ['https://live.carvingsoft.com']
 

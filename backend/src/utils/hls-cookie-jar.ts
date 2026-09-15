@@ -6,6 +6,20 @@ interface JarEntry {
 }
 
 const jar = new Map<string, JarEntry>();
+const playbackSessions = new Map<string, JarEntry>();
+
+export function rememberPlaybackHlsSession(token: string, session: string): void {
+  playbackSessions.set(token, { cookie: session, expiresAt: Date.now() + TTL_MS });
+}
+
+export function getPlaybackHlsSession(token: string): string | undefined {
+  const entry = playbackSessions.get(token);
+  if (!entry || entry.expiresAt <= Date.now()) {
+    playbackSessions.delete(token);
+    return undefined;
+  }
+  return entry.cookie;
+}
 
 function jarKey(token: string, session?: string): string {
   return session ? `${token}:${session}` : token;

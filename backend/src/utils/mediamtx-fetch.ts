@@ -1,3 +1,4 @@
+import { env } from '../config/env';
 import { withCookieHeader } from './hls-cookie-jar';
 
 const DEFAULT_TIMEOUT_MS = 30_000;
@@ -10,6 +11,17 @@ export interface MediaMtxFetchOptions {
   cookie?: string;
   /** Cap total wait for manifest polling (browser requests must not block too long). */
   maxWaitMs?: number;
+}
+
+function withMediaMtxAuth(init: RequestInit = {}): RequestInit {
+  const secret = env.MEDIAMTX_HLS_CDN_SECRET;
+  if (!secret) {
+    return init;
+  }
+
+  const headers = new Headers(init.headers ?? undefined);
+  headers.set('Authorization', `Bearer ${secret}`);
+  return { ...init, headers };
 }
 
 function isRetryableFetchError(error: unknown): boolean {
@@ -33,7 +45,7 @@ export async function fetchFromMediaMtx(
   url: string,
   options: MediaMtxFetchOptions = {},
 ): Promise<Response> {
-  const init = withCookieHeader(options.init ?? {}, options.cookie);
+  const init = withCookieHeader(withMediaMtxAuth(options.init ?? {}), options.cookie);
   const timeoutMs = isHlsManifest(url) ? HLS_MANIFEST_TIMEOUT_MS : DEFAULT_TIMEOUT_MS;
   const signal = init.signal ?? AbortSignal.timeout(timeoutMs);
 
@@ -162,6 +174,7 @@ export function rewriteHlsManifestForProxy(
   manifest: string,
   apiBase: string,
   token: string,
+  injectSession?: string,
 ): string {
   return manifest
     .split('\n')
@@ -173,12 +186,66 @@ export function rewriteHlsManifestForProxy(
 
       const qIdx = trimmed.indexOf('?');
       const pathPart = qIdx >= 0 ? trimmed.slice(0, qIdx) : trimmed;
-      const queryPart = qIdx >= 0 ? trimmed.slice(qIdx + 1) : '';
+      let queryPart = qIdx >= 0 ? trimmed.slice(qIdx + 1) : '';
       const resource = pathPart.split('/').pop() ?? pathPart;
-      const proxied = `${apiBase.replace(/\/$/, '')}/api/stream/hls/${token}/${resource}`;
+      let proxied = `${apiBase.replace(/\/$/, '')}/api/stream/hls/${token}/${resource}`;
+
+      if (injectSession && !queryPart.includes('session=')) {
+        queryPart = queryPart ? `${queryPart}&session=${encodeURIComponent(injectSession)}` : `session=${encodeURIComponent(injectSession)}`;
+      }
+
       return queryPart ? `${proxied}?${queryPart}` : proxied;
     })
     .join('\n');
+}
+
+export function parseSessionFromManifest(manifest: string): string | undefined {
+  for (const line of manifest.split('\n')) {
+    const match = line.match(/[?&]session=([^&\s#]+)/);
+    if (match?.[1]) {
+      return decodeURIComponent(match[1]);
+    }
+  }
+  return undefined;
+}
+
+export function extractMediaMtxHlsSession(response: Response): string | undefined {
+  try {
+    const fromUrl = new URL(response.url).searchParams.get('session');
+    if (fromUrl) {
+      return fromUrl;
+    }
+  } catch {
+    // ignore invalid URL
+  }
+
+  const headers = response.headers as Headers & { getSetCookie?: () => string[] };
+  const setCookies =
+    typeof headers.getSetCookie === 'function'
+      ? headers.getSetCookie.call(response.headers)
+      : [];
+
+  if (setCookies.length === 0) {
+    const single = response.headers.get('set-cookie');
+    if (single) {
+      setCookies.push(single);
+    }
+  }
+
+  for (const raw of setCookies) {
+    const nameValue = raw.split(';')[0]?.trim();
+    const eq = nameValue?.indexOf('=') ?? -1;
+    if (eq <= 0) {
+      continue;
+    }
+    const name = nameValue!.slice(0, eq);
+    const value = nameValue!.slice(eq + 1);
+    if (name !== 'cookieCheck' && value) {
+      return value;
+    }
+  }
+
+  return undefined;
 }
 
 function sleep(ms: number): Promise<void> {
