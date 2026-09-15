@@ -28,7 +28,7 @@ warn() {
 }
 
 echo "==> Parity with local dev fixes"
-echo "    (mpegts HLS, always-on RTSP, valid ENCRYPTION_KEY, synced paths, API on :5280)"
+echo "    (fmp4 HLS for H265, always-on RTSP, valid ENCRYPTION_KEY, synced paths, API on :5280)"
 echo ""
 
 echo "==> MediaMTX service"
@@ -38,10 +38,10 @@ else
   bad "mediamtx not running — bash deploy/restart-mediamtx.sh"
 fi
 
-if grep -q 'hlsVariant: mpegts' /opt/mediamtx/mediamtx.yml 2>/dev/null; then
-  ok "mediamtx.yml has hlsVariant: mpegts"
+if grep -q 'hlsVariant: fmp4' /opt/mediamtx/mediamtx.yml 2>/dev/null; then
+  ok "mediamtx.yml has hlsVariant: fmp4"
 else
-  bad "mediamtx.yml missing hlsVariant: mpegts — bash deploy/restart-mediamtx.sh"
+  bad "mediamtx.yml missing hlsVariant: fmp4 — bash deploy/restart-mediamtx.sh (H265 needs fmp4, not mpegts)"
 fi
 
 if grep -q 'hlsAlwaysRemux: true' /opt/mediamtx/mediamtx.yml 2>/dev/null; then
@@ -51,10 +51,10 @@ else
 fi
 
 RUNNING_VARIANT="$(curl -sf http://127.0.0.1:9997/v3/config/global/get 2>/dev/null | grep -o '"hlsVariant":"[^"]*"' | head -1 || true)"
-if [[ "${RUNNING_VARIANT}" == '"hlsVariant":"mpegts"' ]]; then
-  ok "running MediaMTX hlsVariant is mpegts"
+if [[ "${RUNNING_VARIANT}" == '"hlsVariant":"fmp4"' ]]; then
+  ok "running MediaMTX hlsVariant is fmp4"
 else
-  bad "running hlsVariant is ${RUNNING_VARIANT:-unknown} — restart mediamtx"
+  bad "running hlsVariant is ${RUNNING_VARIANT:-unknown} — restart mediamtx (expect fmp4 for H265)"
 fi
 
 if grep -q 'sourceOnDemand: false' /opt/mediamtx/mediamtx.yml 2>/dev/null; then
@@ -150,7 +150,7 @@ if [[ -n "${CHECK_PATH}" ]]; then
   if [[ "${HLS_HEAD}" == "#EXTM3U" ]]; then
     ok "direct HLS index.m3u8 returns #EXTM3U"
   elif echo "${HLS_HEAD}" | grep -qi 'authentication error'; then
-    bad "HLS authentication error — hlsVariant must be mpegts"
+    bad "HLS authentication error — use hlsVariant fmp4 (not lowLatency)"
   else
     bad "direct HLS failed (got: ${HLS_HEAD:-empty})"
   fi

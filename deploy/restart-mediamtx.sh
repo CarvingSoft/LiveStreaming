@@ -35,8 +35,8 @@ echo "==> Installing systemd unit and production config..."
 sudo cp "${REPO_ROOT}/deploy/systemd/mediamtx.service" /etc/systemd/system/mediamtx.service
 sudo cp "${REPO_ROOT}/mediamtx/mediamtx-prod.yml" "${INSTALL_DIR}/mediamtx.yml"
 
-if ! grep -q 'hlsVariant: mpegts' "${INSTALL_DIR}/mediamtx.yml"; then
-  echo "ERROR: ${INSTALL_DIR}/mediamtx.yml is missing hlsVariant: mpegts"
+if ! grep -q 'hlsVariant: fmp4' "${INSTALL_DIR}/mediamtx.yml"; then
+  echo "ERROR: ${INSTALL_DIR}/mediamtx.yml is missing hlsVariant: fmp4 (required for H265 DVR streams)"
   echo "       Run git pull in ${REPO_ROOT} and retry."
   exit 1
 fi
@@ -66,7 +66,7 @@ echo "Recent logs:"
 sudo journalctl -u mediamtx -n 10 --no-pager
 
 echo ""
-echo "Config check (expect hlsVariant mpegts):"
+echo "Config check (expect hlsVariant fmp4):"
 curl -sf http://127.0.0.1:9997/v3/config/global/get | grep -o '"hlsVariant":"[^"]*"' || echo "API not reachable"
 
 echo ""

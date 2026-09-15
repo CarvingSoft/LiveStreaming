@@ -19,8 +19,8 @@ rtspAddress: :8554
 webrtcAddress: :8889
 hlsAddress: :8888
 
-# mpegts avoids LL-HLS Secure cookie redirects that break the HTTP backend proxy
-hlsVariant: mpegts
+# fmp4 supports H265 (CP Plus main streams). Do NOT use mpegts (H264-only) or lowLatency (cookie/proxy break).
+hlsVariant: fmp4
 # Pre-mux HLS while RTSP is live — avoids 30s+ first-viewer delay (especially H265)
 hlsAlwaysRemux: true
 hlsSegmentDuration: 2s

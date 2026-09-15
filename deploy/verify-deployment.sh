@@ -31,7 +31,7 @@ check "MediaMTX API (local)" "curl -sf http://127.0.0.1:9997/v3/config/paths/lis
 
 echo ""
 echo "==> Configuration checks"
-check "MediaMTX hlsVariant mpegts" "grep -q 'hlsVariant: mpegts' /opt/mediamtx/mediamtx.yml"
+check "MediaMTX hlsVariant fmp4" "grep -q 'hlsVariant: fmp4' /opt/mediamtx/mediamtx.yml"
 check "API encryptionKeyOk" "curl -sf http://127.0.0.1:5280/api/health | grep -q '\"encryptionKeyOk\":true'"
 
 MEDIAMTX_PATHS="$(curl -sf http://127.0.0.1:9997/v3/config/paths/list 2>/dev/null || echo '{}')"

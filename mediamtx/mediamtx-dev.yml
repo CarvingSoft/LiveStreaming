@@ -13,8 +13,8 @@ rtspAddress: :8554
 webrtcAddress: :8889
 hlsAddress: :8888
 
-# Match production — LL-HLS cookie redirects break the HTTP backend HLS proxy
-hlsVariant: mpegts
+# Match production — fmp4 for H265 DVRs; avoid mpegts (H264-only) and lowLatency (proxy cookies)
+hlsVariant: fmp4
 hlsAlwaysRemux: true
 hlsSegmentDuration: 2s
 

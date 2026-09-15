@@ -20,7 +20,7 @@ import {
 } from '../validators/camera.validator';
 import { siteIdParamSchema } from '../validators/site.validator';
 import { decryptJson } from '../services/encryption.service';
-import { assertProductionRtspHost } from '../utils/rtsp-config';
+import { assertPublicRtspHost } from '../utils/rtsp-config';
 
 export const camerasRouter = Router();
 
@@ -100,7 +100,7 @@ camerasRouter.post(
       }
 
       if (body.sourceType === 'rtsp' && body.sourceConfig) {
-        assertProductionRtspHost(body.sourceConfig);
+        assertPublicRtspHost(body.sourceConfig);
       }
 
       const mediamtxPath = buildMediamtxPath(site.slug, cameraKey);
@@ -234,7 +234,7 @@ camerasRouter.put(
         }
 
         if (camera.sourceType === 'rtsp') {
-          assertProductionRtspHost(merged);
+          assertPublicRtspHost(merged);
         }
 
         try {

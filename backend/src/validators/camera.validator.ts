@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { slugifyCameraKey } from '../services/rtsp-builder.service';
+import { publicRtspHostError } from '../utils/network';
 
 const cameraKeyRegex = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 
@@ -10,9 +11,21 @@ function emptyToUndefined(value: unknown): unknown {
   return value;
 }
 
+const rtspHostSchema = z
+  .string()
+  .trim()
+  .min(1)
+  .max(255)
+  .superRefine((host, ctx) => {
+    const message = publicRtspHostError(host);
+    if (message) {
+      ctx.addIssue({ code: 'custom', message });
+    }
+  });
+
 export const rtspSourceSchema = z.object({
-  host: z.string().trim().min(1).max(255),
-  port: z.coerce.number().int().min(1).max(65535).default(554),
+  host: rtspHostSchema,
+  port: z.coerce.number().int().min(1).max(65535).default(11554),
   username: z.string().trim().min(1).max(120),
   password: z.preprocess(
     emptyToUndefined,
@@ -54,7 +67,7 @@ export const cameraCreateSchema = z.object({
 });
 
 const rtspSourcePartialSchema = z.object({
-  host: z.preprocess(emptyToUndefined, z.string().trim().min(1).max(255).optional()),
+  host: z.preprocess(emptyToUndefined, rtspHostSchema.optional()),
   port: z.coerce.number().int().min(1).max(65535).optional(),
   username: z.preprocess(emptyToUndefined, z.string().trim().min(1).max(120).optional()),
   password: z.preprocess(emptyToUndefined, z.string().min(1).max(120).optional()),

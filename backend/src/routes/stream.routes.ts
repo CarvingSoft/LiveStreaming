@@ -111,13 +111,13 @@ function mapHlsFetchError(status: number): AppError {
   if (status === 401) {
     return new AppError(
       502,
-      'MediaMTX rejected HLS sub-playlist (401). Run bash deploy/restart-mediamtx.sh and confirm hlsVariant: mpegts in /opt/mediamtx/mediamtx.yml.',
+      'MediaMTX rejected HLS sub-playlist (401). Run bash deploy/restart-mediamtx.sh and confirm hlsVariant: fmp4 in /opt/mediamtx/mediamtx.yml.',
     );
   }
 
   return new AppError(
     503,
-    'HLS manifest not ready from MediaMTX. RTSP may be connected but HLS remux is still starting — retry in a few seconds. If this persists, set camera stream type to Sub stream (H264) in admin or run bash deploy/restart-mediamtx.sh after git pull.',
+    'HLS manifest not ready from MediaMTX. RTSP may be connected but HLS remux is still starting — retry in a few seconds. If logs show "MPEG-TS supports H264 only", run bash deploy/restart-mediamtx.sh (needs hlsVariant: fmp4 for H265 DVRs).',
   );
 }
 

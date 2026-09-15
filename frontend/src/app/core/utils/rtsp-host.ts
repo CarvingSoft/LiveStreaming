@@ -1,5 +1,5 @@
-/** True for RFC1918 / loopback hosts that EC2 cannot reach over the internet. */
-export function isPrivateHost(host: string): boolean {
+/** True for RFC1918 / loopback — not reachable from EC2 or off-LAN clients. */
+export function isPrivateRtspHost(host: string): boolean {
   const normalized = host.trim().toLowerCase();
   if (
     normalized === 'localhost' ||
@@ -17,15 +17,12 @@ export function isPrivateHost(host: string): boolean {
 }
 
 export function publicRtspHostError(host: string): string | null {
-  if (!isPrivateHost(host)) {
+  if (!isPrivateRtspHost(host)) {
     return null;
   }
 
   return (
-    `RTSP host "${host}" is a private LAN address (192.168.x.x, 10.x.x.x). ` +
-    'Use the DVR public IP and port-forwarded RTSP port instead (e.g. 59.96.60.54:11554 or :10554).'
+    `Use the DVR public IP and forwarded RTSP port (e.g. 59.96.60.54:11554 or :10554). ` +
+    `Private LAN addresses like ${host.trim()} are not allowed.`
   );
 }
-
-/** @deprecated Use publicRtspHostError */
-export const productionRtspHostError = publicRtspHostError;

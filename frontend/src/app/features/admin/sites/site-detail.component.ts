@@ -4,6 +4,7 @@ import { ActivatedRoute, RouterLink } from '@angular/router';
 import { ApiService } from '../../../core/services/api.service';
 import { Camera, RtspSourceForm, Site } from '../../../core/models/api.models';
 import { StatusBadgeComponent } from '../../../shared/status-badge/status-badge.component';
+import { publicRtspHostError } from '../../../core/utils/rtsp-host';
 
 @Component({
   selector: 'app-site-detail',
@@ -89,8 +90,9 @@ import { StatusBadgeComponent } from '../../../shared/status-badge/status-badge.
                         [ngModelOptions]="{ standalone: true }"
                         [attr.name]="'rtsp-host-' + editFieldNonce()"
                         autocomplete="off"
-                        placeholder="192.168.0.50"
+                        placeholder="59.96.60.54"
                       />
+                      <small>DVR public IP only — not 192.168.x.x</small>
                     </label>
                     <label>
                       RTSP Port
@@ -102,7 +104,7 @@ import { StatusBadgeComponent } from '../../../shared/status-badge/status-badge.
                         [attr.name]="'rtsp-port-' + editFieldNonce()"
                         autocomplete="off"
                       />
-                      <small>CP Plus DVRs usually use port 554.</small>
+                      <small>Forwarded RTSP port (e.g. 11554, 10554) — not LAN port 554.</small>
                     </label>
                   </div>
 
@@ -150,8 +152,8 @@ import { StatusBadgeComponent } from '../../../shared/status-badge/status-badge.
                         (ngModelChange)="updateEditRtsp('subtype', $event)"
                         [ngModelOptions]="{ standalone: true }"
                       >
-                        <option [ngValue]="0">Main stream</option>
-                        <option [ngValue]="1">Sub stream</option>
+                        <option [ngValue]="0">Main stream (often H265)</option>
+                        <option [ngValue]="1">Sub stream (often H264 — use if browser cannot play)</option>
                       </select>
                     </label>
                   </div>
@@ -172,12 +174,13 @@ import { StatusBadgeComponent } from '../../../shared/status-badge/status-badge.
                 <div class="row">
                   <label>
                     DVR Host / IP
-                    <input formControlName="host" placeholder="192.168.0.50" autocomplete="off" />
+                    <input formControlName="host" placeholder="59.96.60.54" autocomplete="off" />
+                    <small>DVR public IP only — not 192.168.x.x</small>
                   </label>
                   <label>
                     RTSP Port
                     <input type="number" formControlName="port" autocomplete="off" />
-                    <small>CP Plus DVRs usually use port 554.</small>
+                    <small>Forwarded RTSP port (e.g. 11554, 10554) — not LAN port 554.</small>
                   </label>
                 </div>
 
@@ -422,7 +425,7 @@ export class SiteDetailComponent {
     name: ['', Validators.required],
     cameraKey: [''],
     host: ['', Validators.required],
-    port: [554, [Validators.required, Validators.min(1), Validators.max(65535)]],
+    port: [11554, [Validators.required, Validators.min(1), Validators.max(65535)]],
     username: ['', Validators.required],
     password: ['', Validators.required],
     channel: [1, [Validators.required, Validators.min(1)]],
@@ -460,7 +463,7 @@ export class SiteDetailComponent {
         }
         this.editRtspDraft.set({
           host: config?.host ?? '',
-          port: Number(config?.port ?? 554),
+          port: Number(config?.port ?? 11554),
           username: config?.username ?? '',
           password: '',
           channel: Number(config?.channel ?? details.channelNumber ?? 1),
@@ -520,7 +523,7 @@ export class SiteDetailComponent {
       name: '',
       cameraKey: '',
       host: '',
-      port: 554,
+      port: 11554,
       username: '',
       password: '',
       channel: 1,
@@ -544,6 +547,13 @@ export class SiteDetailComponent {
       const rtsp = this.editRtspDraft();
       if (!rtsp) {
         this.savingCamera.set(false);
+        return;
+      }
+
+      const hostError = publicRtspHostError(rtsp.host);
+      if (hostError) {
+        this.savingCamera.set(false);
+        this.cameraError.set(hostError);
         return;
       }
 
@@ -579,6 +589,13 @@ export class SiteDetailComponent {
           },
           error: (err) => this.handleSaveError(err),
         });
+      return;
+    }
+
+    const hostError = publicRtspHostError(raw.host);
+    if (hostError) {
+      this.savingCamera.set(false);
+      this.cameraError.set(hostError);
       return;
     }
 
