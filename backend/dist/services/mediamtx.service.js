@@ -21,19 +21,27 @@ class MediaMtxService {
             };
         }
     }
+    /** Config API — use for add vs patch (avoids noisy runtime "path not found" logs). */
+    async hasConfigPath(pathName) {
+        const encodedName = encodeURIComponent(pathName);
+        const response = await fetch(`${this.apiBase}/v3/config/paths/get/${encodedName}`, {
+            signal: AbortSignal.timeout(5000),
+        });
+        return response.ok;
+    }
     async upsertPath(pathName, source) {
         const encodedName = encodeURIComponent(pathName);
-        const existing = await this.getPath(pathName);
+        const exists = await this.hasConfigPath(pathName);
         const body = JSON.stringify({
             source,
-            sourceOnDemand: true,
+            sourceOnDemand: env_1.env.STREAM_ON_DEMAND,
             rtspTransport: 'tcp',
         });
-        const url = existing
+        const url = exists
             ? `${this.apiBase}/v3/config/paths/patch/${encodedName}`
             : `${this.apiBase}/v3/config/paths/add/${encodedName}`;
         const response = await fetch(url, {
-            method: existing ? 'PATCH' : 'POST',
+            method: exists ? 'PATCH' : 'POST',
             headers: { 'Content-Type': 'application/json' },
             body,
             signal: AbortSignal.timeout(10000),
@@ -75,10 +83,13 @@ class MediaMtxService {
             return 'disabled';
         }
         if (!pathStatus) {
-            return 'offline';
+            return env_1.env.STREAM_ON_DEMAND ? 'connecting' : 'offline';
         }
         const sourceReady = pathStatus.sourceReady ?? pathStatus.available;
-        if (pathStatus.ready && sourceReady !== false) {
+        const trackCount = Array.isArray(pathStatus.tracks) ? pathStatus.tracks.length : 0;
+        const bytesReceived = pathStatus.bytesReceived ?? 0;
+        const hasVideo = trackCount > 0 || bytesReceived > 0;
+        if (pathStatus.ready && sourceReady !== false && hasVideo) {
             return 'online';
         }
         return 'connecting';
@@ -86,9 +97,11 @@ class MediaMtxService {
     getWhepInternalUrl(mediamtxPath) {
         return `${env_1.env.MEDIAMTX_WEBRTC_URL.replace(/\/$/, '')}/${mediamtxPath}/whep`;
     }
+    getHlsPathBaseUrl(mediamtxPath) {
+        return `${env_1.env.MEDIAMTX_HLS_URL.replace(/\/$/, '')}/${mediamtxPath}`;
+    }
     getHlsInternalUrl(mediamtxPath, suffix = 'index.m3u8') {
-        const base = env_1.env.MEDIAMTX_HLS_URL.replace(/\/$/, '');
-        return `${base}/${mediamtxPath}/${suffix}`;
+        return `${this.getHlsPathBaseUrl(mediamtxPath)}/${suffix}`;
     }
 }
 exports.MediaMtxService = MediaMtxService;

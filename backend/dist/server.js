@@ -4,11 +4,18 @@ const app_1 = require("./app");
 const database_1 = require("./config/database");
 const env_1 = require("./config/env");
 const mediamtx_sync_service_1 = require("./services/mediamtx-sync.service");
+const stream_ondemand_service_1 = require("./services/stream-ondemand.service");
 const status_poller_service_1 = require("./services/status-poller.service");
 async function bootstrap() {
     await (0, database_1.connectDatabase)();
-    await (0, mediamtx_sync_service_1.syncAllCamerasToMediaMtx)();
+    if (env_1.env.STREAM_ON_DEMAND) {
+        console.log('On-demand streaming enabled — RTSP/HLS start when viewers open a site; idle sites tear down after', Math.round(env_1.env.SITE_STREAM_IDLE_MS / 60_000), 'minutes.');
+    }
+    else {
+        await (0, mediamtx_sync_service_1.syncAllCamerasToMediaMtx)();
+    }
     (0, status_poller_service_1.startStatusPoller)();
+    (0, stream_ondemand_service_1.startSiteIdlePruner)();
     const app = (0, app_1.createApp)();
     app.listen(env_1.env.PORT, '0.0.0.0', () => {
         console.log(`API listening on http://0.0.0.0:${env_1.env.PORT}`);

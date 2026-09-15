@@ -3,6 +3,7 @@ import { env } from '../config/env';
 import { PlaybackTokenPayload, StreamStatus } from '../types';
 import { fetchHlsManifestFromMediaMtx } from '../utils/mediamtx-fetch';
 import { mediaMtxService } from './mediamtx.service';
+import { ensureSiteStreaming, touchSiteActivity } from './stream-ondemand.service';
 
 export interface PlaybackSession {
   token: string;
@@ -46,8 +47,9 @@ export class PlaybackService {
 
   private async warmUpHlsPath(mediamtxPath: string): Promise<void> {
     const hlsUrl = mediaMtxService.getHlsInternalUrl(mediamtxPath, 'index.m3u8');
+    const maxWaitMs = env.STREAM_ON_DEMAND ? 45_000 : 20_000;
     try {
-      const response = await fetchHlsManifestFromMediaMtx(hlsUrl, { maxWaitMs: 20_000 });
+      const response = await fetchHlsManifestFromMediaMtx(hlsUrl, { maxWaitMs });
       if (!response.ok) {
         console.warn(`HLS warm-up for ${mediamtxPath} returned ${response.status}`);
       }
@@ -63,8 +65,19 @@ export class PlaybackService {
     mediamtxPath: string;
     cameraName: string;
     isActive: boolean;
+    sourceType: string;
+    encryptedSourceConfig?: string;
     apiPublicBase?: string;
   }): Promise<PlaybackSession> {
+    await ensureSiteStreaming(input.siteSlug, {
+      sourceType: input.sourceType,
+      encryptedSourceConfig: input.encryptedSourceConfig,
+      mediamtxPath: input.mediamtxPath,
+      isActive: input.isActive,
+    });
+
+    touchSiteActivity(input.siteSlug);
+
     if (input.isActive) {
       // Non-blocking — warm-up must not delay the playback API (nginx/browser timeouts).
       void this.warmUpHlsPath(input.mediamtxPath);

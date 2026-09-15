@@ -21,8 +21,8 @@ hlsAddress: :8888
 
 # fmp4 supports H265 (CP Plus main streams). Do NOT use mpegts (H264-only) or lowLatency (cookie/proxy break).
 hlsVariant: fmp4
-# Pre-mux HLS while RTSP is live — avoids 30s+ first-viewer delay (especially H265)
-hlsAlwaysRemux: true
+# Remux HLS only while viewers are watching (pairs with sourceOnDemand)
+hlsAlwaysRemux: false
 hlsSegmentDuration: 2s
 # Shared secret for backend HLS proxy (set from backend/.env by deploy/restart-mediamtx.sh)
 hlsCDNSecret: ""
@@ -30,8 +30,10 @@ hlsCDNSecret: ""
 webrtcAllowOrigins: ['https://live.carvingsoft.com']
 
 pathDefaults:
-  # Always-on RTSP — avoids 15s+ HLS cold-start failures on first viewer
-  sourceOnDemand: false
+  # Pull RTSP only when a viewer requests HLS/WebRTC; close when idle
+  sourceOnDemand: true
+  sourceOnDemandStartTimeout: 30s
+  sourceOnDemandCloseAfter: 30s
   rtspTransport: tcp
 
 paths: {}

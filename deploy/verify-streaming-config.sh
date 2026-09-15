@@ -28,7 +28,7 @@ warn() {
 }
 
 echo "==> Parity with local dev fixes"
-echo "    (fmp4 HLS for H265, always-on RTSP, valid ENCRYPTION_KEY, synced paths, API on :5280)"
+echo "    (fmp4 HLS for H265, on-demand RTSP, valid ENCRYPTION_KEY, API on :5280)"
 echo ""
 
 echo "==> MediaMTX service"
@@ -44,10 +44,10 @@ else
   bad "mediamtx.yml missing hlsVariant: fmp4 — bash deploy/restart-mediamtx.sh (H265 needs fmp4, not mpegts)"
 fi
 
-if grep -q 'hlsAlwaysRemux: true' /opt/mediamtx/mediamtx.yml 2>/dev/null; then
-  ok "mediamtx.yml has hlsAlwaysRemux: true"
+if grep -q 'hlsAlwaysRemux: false' /opt/mediamtx/mediamtx.yml 2>/dev/null; then
+  ok "mediamtx.yml has hlsAlwaysRemux: false (on-demand HLS)"
 else
-  bad "mediamtx.yml missing hlsAlwaysRemux: true — bash deploy/restart-mediamtx.sh"
+  bad "mediamtx.yml missing hlsAlwaysRemux: false — bash deploy/restart-mediamtx.sh"
 fi
 
 RUNNING_VARIANT="$(curl -sf http://127.0.0.1:9997/v3/config/global/get 2>/dev/null | grep -o '"hlsVariant":"[^"]*"' | head -1 || true)"
@@ -57,10 +57,10 @@ else
   bad "running hlsVariant is ${RUNNING_VARIANT:-unknown} — restart mediamtx (expect fmp4 for H265)"
 fi
 
-if grep -q 'sourceOnDemand: false' /opt/mediamtx/mediamtx.yml 2>/dev/null; then
-  ok "mediamtx.yml has sourceOnDemand: false"
+if grep -q 'sourceOnDemand: true' /opt/mediamtx/mediamtx.yml 2>/dev/null; then
+  ok "mediamtx.yml has sourceOnDemand: true (on-demand RTSP)"
 else
-  bad "mediamtx.yml still uses sourceOnDemand: true — git pull && bash deploy/restart-mediamtx.sh"
+  bad "mediamtx.yml still uses sourceOnDemand: false — git pull && bash deploy/restart-mediamtx.sh"
 fi
 
 echo ""
@@ -124,9 +124,9 @@ ITEM_COUNT="$(echo "${PATH_LIST}" | grep -o '"itemCount":[0-9]*' | head -1 | cut
 CAMERA_COUNT="$(mongosh cctv_platform --quiet --eval 'db.cameras.countDocuments({isActive:true})' 2>/dev/null || echo 0)"
 
 if [[ "${CAMERA_COUNT}" -gt 0 && "${ITEM_COUNT:-0}" -eq 0 ]]; then
-  bad "no MediaMTX paths (DB has ${CAMERA_COUNT} cameras) — npm run sync:mediamtx:prod"
+  ok "no MediaMTX paths yet (on-demand — paths register when a viewer opens a site)"
 elif [[ "${CAMERA_COUNT}" -gt 0 ]]; then
-  ok "MediaMTX itemCount=${ITEM_COUNT} (active cameras=${CAMERA_COUNT})"
+  ok "MediaMTX itemCount=${ITEM_COUNT} (active cameras=${CAMERA_COUNT}, on-demand)"
 else
   warn "no active cameras in DB"
 fi
@@ -140,19 +140,21 @@ if [[ -n "${CHECK_PATH}" ]]; then
   echo ""
   echo "==> Path probe: ${CHECK_PATH}"
   PATH_CFG="$(curl -sf "http://127.0.0.1:9997/v3/config/paths/get/${CHECK_PATH}" 2>/dev/null || true)"
-  if echo "${PATH_CFG}" | grep -q '"sourceOnDemand":false'; then
-    ok "${CHECK_PATH} sourceOnDemand=false"
+  if echo "${PATH_CFG}" | grep -q '"sourceOnDemand":true'; then
+    ok "${CHECK_PATH} sourceOnDemand=true"
   else
-    bad "${CHECK_PATH} not always-on — npm run sync:mediamtx:prod"
+    bad "${CHECK_PATH} not on-demand — re-save camera or open live page"
   fi
 
   HLS_HEAD="$(curl -sf "http://127.0.0.1:8888/${CHECK_PATH}/index.m3u8?cookieCheck=1" 2>/dev/null | head -1 || true)"
   if [[ "${HLS_HEAD}" == "#EXTM3U" ]]; then
-    ok "direct HLS index.m3u8 returns #EXTM3U"
+    ok "direct HLS index.m3u8 returns #EXTM3U (stream active)"
+  elif [[ -z "${HLS_HEAD}" ]]; then
+    ok "direct HLS idle (on-demand — open live page to start RTSP)"
   elif echo "${HLS_HEAD}" | grep -qi 'authentication error'; then
     bad "HLS authentication error — use hlsVariant fmp4 (not lowLatency)"
   else
-    bad "direct HLS failed (got: ${HLS_HEAD:-empty})"
+    warn "direct HLS probe: ${HLS_HEAD:-empty} (may be idle until a viewer connects)"
   fi
 fi
 

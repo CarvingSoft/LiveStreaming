@@ -146,6 +146,26 @@ pm2 save
 pm2 startup
 ```
 
+## On-demand streaming (bandwidth savings)
+
+By default the platform **does not pull RTSP or mux HLS** until someone opens a site's live page.
+
+| Layer | Behavior |
+|-------|----------|
+| **Frontend** | Each camera tile uses lazy-load — HLS starts only when visible in the grid |
+| **Backend** | On first playback request for a site, registers that site's cameras in MediaMTX |
+| **MediaMTX** | `sourceOnDemand: true` — connects to DVR only when a viewer reads HLS/WebRTC |
+| **Idle cleanup** | After 15 minutes with no viewers, backend removes that site's MediaMTX paths |
+
+Backend env (optional overrides in `backend/.env`):
+
+```env
+STREAM_ON_DEMAND=true          # default — set false for 24/7 RTSP (all sites)
+SITE_STREAM_IDLE_MS=900000     # 15 min idle before tearing down a site
+```
+
+After MediaMTX restart, paths are empty until viewers return — **no** `sync:mediamtx:prod` needed in on-demand mode. For manual recovery: `npm run sync:mediamtx:prod -- --all`.
+
 ## MediaMTX Production Config
 
 Production uses the minimal config in [`mediamtx/mediamtx-prod.yml`](../mediamtx/mediamtx-prod.yml) (not the full [`mediamtx/mediamtx.yml`](../mediamtx/mediamtx.yml) dev template).
@@ -158,12 +178,15 @@ rtspAddress: :8554
 webrtcAddress: :8889
 hlsAddress: :8888
 
-hlsVariant: mpegts   # required — LL-HLS Secure cookies break HTTP backend proxy
+hlsVariant: fmp4              # required for H265 DVRs
+hlsAlwaysRemux: false         # mux HLS only while viewers watch
 
 webrtcAllowOrigins: ['https://live.carvingsoft.com']
 
 pathDefaults:
   sourceOnDemand: true
+  sourceOnDemandStartTimeout: 30s
+  sourceOnDemandCloseAfter: 30s
   rtspTransport: tcp
 ```
 
@@ -180,7 +203,7 @@ sudo journalctl -u mediamtx -f
 curl http://127.0.0.1:9997/v3/paths/list
 ```
 
-Camera paths are created dynamically by the backend when you add cameras in admin — you do not edit `paths:` manually in production.
+Camera paths are registered dynamically when a viewer opens a site's live page (or when you save a camera in admin). You do not edit `paths:` manually in production.
 
 After updating `mediamtx-prod.yml` on EC2:
 

@@ -17,12 +17,15 @@ export declare class PlaybackService {
         whepUrl: string;
         hlsUrl: string;
     };
+    private warmUpHlsPath;
     createSession(input: {
         siteSlug: string;
         cameraKey: string;
         mediamtxPath: string;
         cameraName: string;
         isActive: boolean;
+        sourceType: string;
+        encryptedSourceConfig?: string;
         apiPublicBase?: string;
     }): Promise<PlaybackSession>;
 }

@@ -109,15 +109,25 @@ async function diagnoseCamera(
   const encodedPath = encodeURIComponent(camera.mediamtxPath);
   const configPath = await fetchJson(`${apiBase}/v3/config/paths/get/${encodedPath}`);
   if (!configPath) {
-    console.log('  FAIL path missing in MediaMTX config — run: npm run sync:mediamtx:prod');
+    console.log(
+      env.STREAM_ON_DEMAND
+        ? '  WARN path missing — open live page or re-save camera in admin'
+        : '  FAIL path missing in MediaMTX config — run: npm run sync:mediamtx:prod',
+    );
+    if (!env.STREAM_ON_DEMAND) {
+      ok = false;
+    }
     ok = false;
   } else {
     const source = String(configPath.source ?? '');
     const onDemand = configPath.sourceOnDemand;
     console.log(`  Config source: ${redactRtspUrl(source)}`);
-    console.log(`  Config sourceOnDemand: ${String(onDemand)} (expect false)`);
-    if (onDemand === true) {
-      console.log('  FAIL sourceOnDemand is true — run: npm run sync:mediamtx:prod');
+    const expectOnDemand = env.STREAM_ON_DEMAND;
+    console.log(`  Config sourceOnDemand: ${String(onDemand)} (expect ${expectOnDemand})`);
+    if (onDemand !== expectOnDemand) {
+      console.log(
+        `  FAIL sourceOnDemand mismatch — re-save camera or npm run sync:mediamtx${expectOnDemand ? '' : ':prod'}`,
+      );
       ok = false;
     }
     if (source && source !== rtspUrl) {

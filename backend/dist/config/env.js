@@ -23,8 +23,19 @@ const envSchema = zod_1.z.object({
     MEDIAMTX_API_URL: zod_1.z.string().url(),
     MEDIAMTX_WEBRTC_URL: zod_1.z.string().url(),
     MEDIAMTX_HLS_URL: zod_1.z.string().url(),
+    /** Shared with MediaMTX hlsCDNSecret — backend sends Authorization: Bearer on HLS fetches. */
+    MEDIAMTX_HLS_CDN_SECRET: zod_1.z.string().min(8).optional(),
     RTSP_DEFAULT_PATH_TEMPLATE: zod_1.z.string().default('/cam/realmonitor?channel={channel}&subtype={subtype}'),
     STATUS_POLL_INTERVAL_MS: zod_1.z.coerce.number().default(15000),
+    /** When true, RTSP/HLS run only while viewers access a site (default). */
+    STREAM_ON_DEMAND: zod_1.z
+        .enum(['true', 'false'])
+        .default('true')
+        .transform((value) => value === 'true'),
+    /** Tear down a site's MediaMTX paths after this idle period (ms). */
+    SITE_STREAM_IDLE_MS: zod_1.z.coerce.number().default(900_000),
+    /** How often to check for idle sites (ms). */
+    SITE_IDLE_CHECK_INTERVAL_MS: zod_1.z.coerce.number().default(60_000),
     SEED_ADMIN_NAME: zod_1.z.string().default('Super Admin'),
     SEED_ADMIN_EMAIL: zod_1.z.string().email().optional(),
     SEED_ADMIN_PASSWORD: zod_1.z.string().min(8).optional(),

@@ -39,6 +39,8 @@ exports.playbackRouter.get('/:siteSlug/:cameraKey', auth_middleware_1.optionalAu
             mediamtxPath: camera.mediamtxPath,
             cameraName: camera.name,
             isActive: camera.isActive,
+            sourceType: camera.sourceType,
+            encryptedSourceConfig: camera.encryptedSourceConfig,
             apiPublicBase: (0, request_base_1.getRequestApiBase)(req),
         });
         res.json({
@@ -63,6 +65,8 @@ exports.playbackRouter.get('/:siteSlug/:cameraKey/token', auth_middleware_1.opti
             mediamtxPath: camera.mediamtxPath,
             cameraName: camera.name,
             isActive: camera.isActive,
+            sourceType: camera.sourceType,
+            encryptedSourceConfig: camera.encryptedSourceConfig,
             apiPublicBase: (0, request_base_1.getRequestApiBase)(req),
         });
         res.json({

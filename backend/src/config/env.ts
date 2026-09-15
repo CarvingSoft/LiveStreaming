@@ -23,6 +23,15 @@ const envSchema = z.object({
   MEDIAMTX_HLS_CDN_SECRET: z.string().min(8).optional(),
   RTSP_DEFAULT_PATH_TEMPLATE: z.string().default('/cam/realmonitor?channel={channel}&subtype={subtype}'),
   STATUS_POLL_INTERVAL_MS: z.coerce.number().default(15000),
+  /** When true, RTSP/HLS run only while viewers access a site (default). */
+  STREAM_ON_DEMAND: z
+    .enum(['true', 'false'])
+    .default('true')
+    .transform((value) => value === 'true'),
+  /** Tear down a site's MediaMTX paths after this idle period (ms). */
+  SITE_STREAM_IDLE_MS: z.coerce.number().default(900_000),
+  /** How often to check for idle sites (ms). */
+  SITE_IDLE_CHECK_INTERVAL_MS: z.coerce.number().default(60_000),
   SEED_ADMIN_NAME: z.string().default('Super Admin'),
   SEED_ADMIN_EMAIL: z.string().email().optional(),
   SEED_ADMIN_PASSWORD: z.string().min(8).optional(),

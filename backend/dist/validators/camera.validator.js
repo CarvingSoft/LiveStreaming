@@ -3,6 +3,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.playbackParamSchema = exports.cameraIdParamSchema = exports.cameraUpdateSchema = exports.cameraCreateSchema = exports.rtspSourceSchema = void 0;
 const zod_1 = require("zod");
 const rtsp_builder_service_1 = require("../services/rtsp-builder.service");
+const network_1 = require("../utils/network");
 const cameraKeyRegex = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 function emptyToUndefined(value) {
     if (value === '' || value === null || value === undefined) {
@@ -10,9 +11,20 @@ function emptyToUndefined(value) {
     }
     return value;
 }
+const rtspHostSchema = zod_1.z
+    .string()
+    .trim()
+    .min(1)
+    .max(255)
+    .superRefine((host, ctx) => {
+    const message = (0, network_1.publicRtspHostError)(host);
+    if (message) {
+        ctx.addIssue({ code: 'custom', message });
+    }
+});
 exports.rtspSourceSchema = zod_1.z.object({
-    host: zod_1.z.string().trim().min(1).max(255),
-    port: zod_1.z.coerce.number().int().min(1).max(65535).default(554),
+    host: rtspHostSchema,
+    port: zod_1.z.coerce.number().int().min(1).max(65535).default(11554),
     username: zod_1.z.string().trim().min(1).max(120),
     password: zod_1.z.preprocess(emptyToUndefined, zod_1.z.string().min(1).max(120).optional()),
     channel: zod_1.z.coerce.number().int().min(1).max(256).default(1),
@@ -40,7 +52,7 @@ exports.cameraCreateSchema = zod_1.z.object({
     sortOrder: zod_1.z.coerce.number().int().min(0).optional(),
 });
 const rtspSourcePartialSchema = zod_1.z.object({
-    host: zod_1.z.preprocess(emptyToUndefined, zod_1.z.string().trim().min(1).max(255).optional()),
+    host: zod_1.z.preprocess(emptyToUndefined, rtspHostSchema.optional()),
     port: zod_1.z.coerce.number().int().min(1).max(65535).optional(),
     username: zod_1.z.preprocess(emptyToUndefined, zod_1.z.string().trim().min(1).max(120).optional()),
     password: zod_1.z.preprocess(emptyToUndefined, zod_1.z.string().min(1).max(120).optional()),

@@ -54,6 +54,8 @@ playbackRouter.get(
         mediamtxPath: camera.mediamtxPath,
         cameraName: camera.name,
         isActive: camera.isActive,
+        sourceType: camera.sourceType,
+        encryptedSourceConfig: camera.encryptedSourceConfig,
         apiPublicBase: getRequestApiBase(req),
       });
 
@@ -89,6 +91,8 @@ playbackRouter.get(
         mediamtxPath: camera.mediamtxPath,
         cameraName: camera.name,
         isActive: camera.isActive,
+        sourceType: camera.sourceType,
+        encryptedSourceConfig: camera.encryptedSourceConfig,
         apiPublicBase: getRequestApiBase(req),
       });
 

@@ -50,8 +50,7 @@ export class MediaMtxService {
 
     const body = JSON.stringify({
       source,
-      // Always-on RTSP — on-demand cold starts cause HLS 502/timeouts in prod and dev.
-      sourceOnDemand: false,
+      sourceOnDemand: env.STREAM_ON_DEMAND,
       rtspTransport: 'tcp',
     });
 
@@ -112,7 +111,7 @@ export class MediaMtxService {
     }
 
     if (!pathStatus) {
-      return 'offline';
+      return env.STREAM_ON_DEMAND ? 'connecting' : 'offline';
     }
 
     const sourceReady = pathStatus.sourceReady ?? pathStatus.available;

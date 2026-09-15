@@ -39,6 +39,7 @@ import { StatusBadgeComponent } from '../../../shared/status-badge/status-badge.
                 [siteSlug]="site()!.slug"
                 [cameraKey]="camera.cameraKey"
                 [cameraName]="camera.name"
+                [lazyLoad]="true"
               />
             }
           </div>

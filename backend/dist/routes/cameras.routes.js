@@ -18,6 +18,7 @@ const params_1 = require("../utils/params");
 const camera_validator_1 = require("../validators/camera.validator");
 const site_validator_1 = require("../validators/site.validator");
 const encryption_service_2 = require("../services/encryption.service");
+const rtsp_config_1 = require("../utils/rtsp-config");
 exports.camerasRouter = (0, express_1.Router)();
 exports.camerasRouter.use(auth_middleware_1.authenticate, (0, auth_middleware_1.authorize)('super_admin', 'admin'));
 function mapEncryptionError(error) {
@@ -65,6 +66,9 @@ exports.camerasRouter.post('/sites/:id/cameras', (0, validate_middleware_1.valid
         }
         if (body.sourceType === 'rtsp' && !body.sourceConfig?.password) {
             throw new errors_1.AppError(400, 'RTSP password is required when creating a camera');
+        }
+        if (body.sourceType === 'rtsp' && body.sourceConfig) {
+            (0, rtsp_config_1.assertPublicRtspHost)(body.sourceConfig);
         }
         const mediamtxPath = (0, rtsp_builder_service_1.buildMediamtxPath)(site.slug, cameraKey);
         let encryptedSourceConfig;
@@ -175,6 +179,9 @@ exports.camerasRouter.put('/:id', (0, validate_middleware_1.validateParams)(came
             };
             if (camera.sourceType === 'rtsp' && !merged.password) {
                 throw new errors_1.AppError(400, 'RTSP password is required');
+            }
+            if (camera.sourceType === 'rtsp') {
+                (0, rtsp_config_1.assertPublicRtspHost)(merged);
             }
             try {
                 camera.encryptedSourceConfig = (0, encryption_service_1.encryptJson)(merged);

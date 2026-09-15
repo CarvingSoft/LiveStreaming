@@ -27,8 +27,10 @@ import { StatusBadgeComponent } from '../status-badge/status-badge.component';
         <app-status-badge [status]="status()" />
       </div>
 
-      <div class="video-shell">
-        @if (status() === 'offline' || status() === 'disabled') {
+      <div #videoShell class="video-shell">
+        @if (lazyLoad && !isActive()) {
+          <div class="overlay">Stream starts when this camera is visible (saves bandwidth).</div>
+        } @else if (status() === 'offline' || status() === 'disabled') {
           <div class="overlay">Camera is currently offline.</div>
         } @else if (status() === 'connecting') {
           <div class="overlay">Connecting to live stream...</div>
@@ -115,32 +117,74 @@ export class CameraPlayerComponent implements AfterViewInit, OnDestroy {
   @Input({ required: true }) siteSlug!: string;
   @Input({ required: true }) cameraKey!: string;
   @Input({ required: true }) cameraName!: string;
+  /** When true, HLS/WebRTC starts only while the tile is on screen (reduces AWS egress). */
+  @Input() lazyLoad = false;
 
   @ViewChild('videoEl') videoRef!: ElementRef<HTMLVideoElement>;
+  @ViewChild('videoShell') videoShellRef!: ElementRef<HTMLElement>;
 
   private readonly api = inject(ApiService);
   private whepPlayer: WhepPlayer | null = null;
   private hls: Hls | null = null;
+  private visibilityObserver: IntersectionObserver | null = null;
+  private playbackActive = false;
 
+  readonly isActive = signal(false);
   readonly status = signal<StreamStatus>('connecting');
   readonly errorMessage = signal(
     'Unable to reach the camera DVR. Use the DVR public IP and forwarded RTSP port (e.g. 59.96.60.54:11554).',
   );
 
   ngOnDestroy(): void {
+    this.visibilityObserver?.disconnect();
     this.cleanup();
   }
 
-  async ngAfterViewInit(): Promise<void> {
-    await this.startPlayback();
+  ngAfterViewInit(): void {
+    if (!this.lazyLoad) {
+      this.isActive.set(true);
+      void this.startPlayback();
+      return;
+    }
+
+    this.status.set('connecting');
+    this.visibilityObserver = new IntersectionObserver(
+      (entries) => {
+        const visible = entries.some((entry) => entry.isIntersecting);
+        if (visible) {
+          this.isActive.set(true);
+          if (!this.playbackActive) {
+            void this.startPlayback();
+          }
+          return;
+        }
+
+        this.isActive.set(false);
+        if (this.playbackActive) {
+          this.stopPlayback();
+        }
+      },
+      { root: null, rootMargin: '64px', threshold: 0.2 },
+    );
+    this.visibilityObserver.observe(this.videoShellRef.nativeElement);
   }
 
   retry(): void {
+    if (this.lazyLoad && !this.isActive()) {
+      return;
+    }
     void this.startPlayback();
+  }
+
+  private stopPlayback(): void {
+    this.playbackActive = false;
+    this.cleanup();
+    this.status.set('connecting');
   }
 
   private async startPlayback(): Promise<void> {
     this.cleanup();
+    this.playbackActive = true;
     this.status.set('connecting');
 
     try {
@@ -148,11 +192,13 @@ export class CameraPlayerComponent implements AfterViewInit, OnDestroy {
         this.api.getPlaybackSession(this.siteSlug, this.cameraKey),
       );
       if (!session) {
+        this.playbackActive = false;
         this.status.set('error');
         return;
       }
 
       if (session.status === 'disabled') {
+        this.playbackActive = false;
         this.status.set('disabled');
         return;
       }
@@ -167,6 +213,7 @@ export class CameraPlayerComponent implements AfterViewInit, OnDestroy {
         try {
           await this.startHlsFallback(session.hlsUrl, video);
         } catch {
+          this.playbackActive = false;
           this.errorMessage.set(
             'Live stream failed to load. Retry, or set camera to Sub stream (H264) in admin if video stays black.',
           );
@@ -192,10 +239,12 @@ export class CameraPlayerComponent implements AfterViewInit, OnDestroy {
         try {
           await this.startHlsFallback(session.hlsUrl, video);
         } catch {
+          this.playbackActive = false;
           this.status.set('offline');
         }
       }
     } catch {
+      this.playbackActive = false;
       this.status.set('error');
     }
   }

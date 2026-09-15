@@ -1,4 +1,5 @@
 import { Camera } from '../models/camera.model';
+import { getSiteBySlug } from '../repositories/site.repository';
 import { decryptJson } from './encryption.service';
 import { mediaMtxService } from './mediamtx.service';
 import { buildRtspUrl } from './rtsp-builder.service';
@@ -32,9 +33,44 @@ export async function syncCameraToMediaMtx(camera: {
   await mediaMtxService.upsertPath(camera.mediamtxPath, rtspUrl);
 }
 
+/** Register all cameras for one site (used when a viewer opens that site's live page). */
+export async function syncSiteCamerasToMediaMtx(siteSlug: string): Promise<void> {
+  const site = await getSiteBySlug(siteSlug);
+  const cameras = await Camera.find({ siteId: site._id }).select(
+    'name mediamtxPath sourceType encryptedSourceConfig isActive',
+  );
+
+  for (const camera of cameras) {
+    try {
+      await syncCameraToMediaMtx(camera);
+      if (camera.isActive && camera.sourceType === 'rtsp') {
+        console.log(`MediaMTX synced (site ${siteSlug}): ${camera.mediamtxPath}`);
+      }
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'unknown error';
+      console.error(`MediaMTX sync failed for ${camera.mediamtxPath} (${camera.name}): ${message}`);
+    }
+  }
+}
+
+/** Remove all MediaMTX paths for a site after idle timeout (on-demand mode). */
+export async function removeSiteFromMediaMtx(siteSlug: string): Promise<void> {
+  const site = await getSiteBySlug(siteSlug);
+  const cameras = await Camera.find({ siteId: site._id }).select('mediamtxPath');
+
+  for (const camera of cameras) {
+    await mediaMtxService.deletePath(camera.mediamtxPath);
+  }
+
+  await Camera.updateMany(
+    { siteId: site._id },
+    { lastKnownStatus: 'offline', lastStatusAt: new Date() },
+  );
+}
+
 /**
- * Re-register all active RTSP cameras with MediaMTX. Paths added via the Control API
- * are lost when MediaMTX restarts; run this on backend startup and after mediamtx reload.
+ * Re-register all active RTSP cameras with MediaMTX. Used when STREAM_ON_DEMAND=false
+ * or for manual recovery via npm run sync:mediamtx.
  */
 export async function syncAllCamerasToMediaMtx(): Promise<void> {
   const cameras = await Camera.find().select(

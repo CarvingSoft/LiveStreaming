@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { playbackService } from '../services/playback.service';
 import { mediaMtxService } from '../services/mediamtx.service';
+import { touchSiteActivity } from '../services/stream-ondemand.service';
 import { AppError } from '../utils/errors';
 import {
   collectSetCookie,
@@ -30,6 +31,7 @@ streamRouter.options('/whep/:token', (_req, res) => {
 streamRouter.post('/whep/:token', async (req, res, next) => {
   try {
     const payload = playbackService.verifyToken(paramString(req, 'token'));
+    touchSiteActivity(payload.siteSlug);
     const whepUrl = mediaMtxService.getWhepInternalUrl(payload.mediamtxPath);
     const offerSdp =
       typeof req.body === 'string'
@@ -126,7 +128,7 @@ function mapHlsFetchError(status: number): AppError {
   if (status === 404) {
     return new AppError(
       404,
-      'Stream path not found in MediaMTX. Re-save the camera in admin or run npm run sync:mediamtx:prod.',
+      'Stream path not found in MediaMTX. Open the live page to register paths, or re-save the camera in admin.',
     );
   }
 
@@ -147,6 +149,7 @@ streamRouter.get('/hls/:token/:file', async (req, res, next) => {
   try {
     const token = paramString(req, 'token');
     const payload = playbackService.verifyToken(token);
+    touchSiteActivity(payload.siteSlug);
     const wildcard = paramString(req, 'file') || 'index.m3u8';
     const query = { ...req.query } as Record<string, unknown>;
 
