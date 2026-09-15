@@ -8,7 +8,12 @@ import {
   mergeCookieHeader,
   setHlsCookie,
 } from '../utils/hls-cookie-jar';
-import { fetchFromMediaMtx, fetchHlsManifestFromMediaMtx } from '../utils/mediamtx-fetch';
+import {
+  buildMediaMtxHlsUrl,
+  fetchFromMediaMtx,
+  fetchHlsManifestFromMediaMtx,
+  rewriteHlsManifestForProxy,
+} from '../utils/mediamtx-fetch';
 import { paramString } from '../utils/params';
 import { getRequestApiBase } from '../utils/request-base';
 
@@ -61,13 +66,21 @@ const HLS_PROXY_MAX_WAIT_MS = 45_000;
 
 async function fetchHlsFromMediaMtx(
   token: string,
-  session: string | undefined,
   mediamtxPath: string,
   file: string,
+  query: Record<string, unknown>,
 ): Promise<Response> {
-  const hlsUrl = mediaMtxService.getHlsInternalUrl(mediamtxPath, file);
+  const sessionKey =
+    typeof query.session === 'string'
+      ? query.session
+      : Array.isArray(query.session) && typeof query.session[0] === 'string'
+        ? query.session[0]
+        : undefined;
+
+  const hlsBase = mediaMtxService.getHlsPathBaseUrl(mediamtxPath);
+  const hlsUrl = buildMediaMtxHlsUrl(hlsBase, file, query);
   const fetchOptions = {
-    cookie: getHlsCookie(token, session),
+    cookie: getHlsCookie(token, sessionKey),
     maxWaitMs: HLS_PROXY_MAX_WAIT_MS,
   };
   const isManifest = file.endsWith('.m3u8');
@@ -77,24 +90,24 @@ async function fetchHlsFromMediaMtx(
     : await fetchFromMediaMtx(hlsUrl, fetchOptions);
 
   if (!response.ok && response.status === 401 && isManifest && file !== 'index.m3u8') {
-    const indexUrl = mediaMtxService.getHlsInternalUrl(mediamtxPath, 'index.m3u8');
+    const indexUrl = buildMediaMtxHlsUrl(hlsBase, 'index.m3u8', {});
     const indexResponse = await fetchFromMediaMtx(indexUrl, fetchOptions);
     const bootstrappedCookie = mergeCookieHeader(
-      getHlsCookie(token, session),
+      getHlsCookie(token, sessionKey),
       collectSetCookie(indexResponse),
     );
     if (bootstrappedCookie) {
-      setHlsCookie(token, session, bootstrappedCookie);
-      const retryOptions = { cookie: bootstrappedCookie };
+      setHlsCookie(token, sessionKey, bootstrappedCookie);
+      const retryOptions = { cookie: bootstrappedCookie, maxWaitMs: HLS_PROXY_MAX_WAIT_MS };
       response = isManifest
         ? await fetchHlsManifestFromMediaMtx(hlsUrl, retryOptions)
         : await fetchFromMediaMtx(hlsUrl, retryOptions);
     }
   }
 
-  const mergedCookie = mergeCookieHeader(getHlsCookie(token, session), collectSetCookie(response));
+  const mergedCookie = mergeCookieHeader(getHlsCookie(token, sessionKey), collectSetCookie(response));
   if (mergedCookie) {
-    setHlsCookie(token, session, mergedCookie);
+    setHlsCookie(token, sessionKey, mergedCookie);
   }
 
   return response;
@@ -126,9 +139,9 @@ streamRouter.get('/hls/:token/:file', async (req, res, next) => {
     const token = paramString(req, 'token');
     const payload = playbackService.verifyToken(token);
     const wildcard = paramString(req, 'file') || 'index.m3u8';
-    const session = typeof req.query.session === 'string' ? req.query.session : undefined;
+    const query = { ...req.query } as Record<string, unknown>;
 
-    const response = await fetchHlsFromMediaMtx(token, session, payload.mediamtxPath, wildcard);
+    const response = await fetchHlsFromMediaMtx(token, payload.mediamtxPath, wildcard, query);
 
     if (!response.ok) {
       const detail = await response.clone().text().catch(() => '');
@@ -144,17 +157,7 @@ streamRouter.get('/hls/:token/:file', async (req, res, next) => {
     if (wildcard.endsWith('.m3u8')) {
       const manifest = bodyBuffer.toString('utf8');
       const apiBase = getRequestApiBase(req);
-      const rewritten = manifest
-        .split('\n')
-        .map((line) => {
-          const trimmed = line.trim();
-          if (!trimmed || trimmed.startsWith('#')) {
-            return line;
-          }
-          const resource = trimmed.split('?')[0]?.split('/').pop() ?? trimmed;
-          return `${apiBase}/api/stream/hls/${token}/${resource}`;
-        })
-        .join('\n');
+      const rewritten = rewriteHlsManifestForProxy(manifest, apiBase, token);
       bodyBuffer = Buffer.from(rewritten, 'utf8');
     }
 

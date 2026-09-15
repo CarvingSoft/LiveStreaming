@@ -131,9 +131,12 @@ export class MediaMtxService {
     return `${env.MEDIAMTX_WEBRTC_URL.replace(/\/$/, '')}/${mediamtxPath}/whep`;
   }
 
+  getHlsPathBaseUrl(mediamtxPath: string): string {
+    return `${env.MEDIAMTX_HLS_URL.replace(/\/$/, '')}/${mediamtxPath}`;
+  }
+
   getHlsInternalUrl(mediamtxPath: string, suffix = 'index.m3u8'): string {
-    const base = env.MEDIAMTX_HLS_URL.replace(/\/$/, '');
-    return `${base}/${mediamtxPath}/${suffix}`;
+    return `${this.getHlsPathBaseUrl(mediamtxPath)}/${suffix}`;
   }
 }
 

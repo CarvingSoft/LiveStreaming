@@ -124,7 +124,7 @@ export class CameraPlayerComponent implements AfterViewInit, OnDestroy {
 
   readonly status = signal<StreamStatus>('connecting');
   readonly errorMessage = signal(
-    'Unable to reach the camera DVR. Check IP, RTSP port (usually 554), and credentials.',
+    'Unable to reach the camera DVR. Use the DVR public IP and forwarded RTSP port (e.g. 59.96.60.54:11554).',
   );
 
   ngOnDestroy(): void {
@@ -157,19 +157,25 @@ export class CameraPlayerComponent implements AfterViewInit, OnDestroy {
         return;
       }
 
-      this.status.set(session.status === 'online' ? 'online' : 'connecting');
-
       const video = this.videoRef.nativeElement;
 
       // Production: HLS via API proxy — WebRTC ICE cannot reach MediaMTX on EC2 from browsers
       if (environment.production) {
+        if (session.status !== 'online') {
+          this.status.set('connecting');
+        }
         try {
           await this.startHlsFallback(session.hlsUrl, video);
         } catch {
-          this.status.set('offline');
+          this.errorMessage.set(
+            'Live stream failed to load. Retry, or set camera to Sub stream (H264) in admin if video stays black.',
+          );
+          this.status.set('error');
         }
         return;
       }
+
+      this.status.set(session.status === 'online' ? 'online' : 'connecting');
 
       try {
         this.whepPlayer = new WhepPlayer({

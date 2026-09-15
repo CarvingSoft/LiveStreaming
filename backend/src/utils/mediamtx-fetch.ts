@@ -37,7 +37,7 @@ export async function fetchFromMediaMtx(
   const timeoutMs = isHlsManifest(url) ? HLS_MANIFEST_TIMEOUT_MS : DEFAULT_TIMEOUT_MS;
   const signal = init.signal ?? AbortSignal.timeout(timeoutMs);
 
-  if (isHlsManifest(url) && !url.includes('cookieCheck=1')) {
+  if (isHlsManifest(url) && !url.includes('cookieCheck=1') && !url.includes('session=')) {
     const withCookieCheck = await fetch(appendCookieCheck(url), {
       ...init,
       signal,
@@ -56,7 +56,7 @@ export async function fetchFromMediaMtx(
     response = await fetch(nextUrl, { ...init, signal, redirect: 'follow' });
   }
 
-  if (!response.ok && isHlsManifest(url) && !url.includes('cookieCheck=1')) {
+  if (!response.ok && isHlsManifest(url) && !url.includes('cookieCheck=1') && !url.includes('session=')) {
     response = await fetch(appendCookieCheck(url), { ...init, signal, redirect: 'follow' });
   }
 
@@ -128,6 +128,57 @@ function appendCookieCheck(url: string): string {
   const parsed = new URL(url);
   parsed.searchParams.set('cookieCheck', '1');
   return parsed.toString();
+}
+
+/** Build internal MediaMTX HLS URL, forwarding fmp4 session/part query params from the browser. */
+export function buildMediaMtxHlsUrl(
+  baseUrl: string,
+  file: string,
+  query: Record<string, unknown> = {},
+): string {
+  const parsed = new URL(`${baseUrl.replace(/\/$/, '')}/${file}`);
+
+  for (const [key, value] of Object.entries(query)) {
+    if (value === undefined || value === null) continue;
+    if (Array.isArray(value)) {
+      if (typeof value[0] === 'string') parsed.searchParams.set(key, value[0]);
+      continue;
+    }
+    if (typeof value === 'string') {
+      parsed.searchParams.set(key, value);
+    }
+  }
+
+  const isIndex = file === 'index.m3u8' || file.endsWith('/index.m3u8');
+  if (isIndex && !parsed.searchParams.has('session') && !parsed.searchParams.has('cookieCheck')) {
+    parsed.searchParams.set('cookieCheck', '1');
+  }
+
+  return parsed.toString();
+}
+
+/** Rewrite MediaMTX HLS playlist lines for the public API proxy, preserving ?session= etc. */
+export function rewriteHlsManifestForProxy(
+  manifest: string,
+  apiBase: string,
+  token: string,
+): string {
+  return manifest
+    .split('\n')
+    .map((line) => {
+      const trimmed = line.trim();
+      if (!trimmed || trimmed.startsWith('#')) {
+        return line;
+      }
+
+      const qIdx = trimmed.indexOf('?');
+      const pathPart = qIdx >= 0 ? trimmed.slice(0, qIdx) : trimmed;
+      const queryPart = qIdx >= 0 ? trimmed.slice(qIdx + 1) : '';
+      const resource = pathPart.split('/').pop() ?? pathPart;
+      const proxied = `${apiBase.replace(/\/$/, '')}/api/stream/hls/${token}/${resource}`;
+      return queryPart ? `${proxied}?${queryPart}` : proxied;
+    })
+    .join('\n');
 }
 
 function sleep(ms: number): Promise<void> {

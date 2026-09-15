@@ -203,8 +203,8 @@ import { publicRtspHostError } from '../../../core/utils/rtsp-host';
                   <label>
                     Stream Type
                     <select formControlName="subtype">
-                      <option [ngValue]="0">Main stream</option>
-                      <option [ngValue]="1">Sub stream</option>
+                      <option [ngValue]="0">Main stream (often H265)</option>
+                      <option [ngValue]="1">Sub stream (often H264 — use if browser cannot play)</option>
                     </select>
                   </label>
                 </div>
