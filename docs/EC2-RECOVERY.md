@@ -4,6 +4,40 @@ Use when cameras cannot be added, streams fail, or MediaMTX shows `path not foun
 
 **EC2 repo path:** `/home/ubuntu/LiveServer/LiveStreaming`
 
+## Server hanging / disconnects / high traffic
+
+After the on-demand update, periodic disconnects usually mean **CPU/RAM exhaustion** or **too many simultaneous HLS streams**, not a broken API.
+
+**Run on EC2 (SSH):**
+
+```bash
+cd /home/ubuntu/LiveServer/LiveStreaming
+bash deploy/diagnose-server-load.sh
+bash deploy/diagnose-production.sh
+bash deploy/verify-streaming-config.sh
+```
+
+**AWS Console (browser):**
+
+| Where | What to check |
+|-------|----------------|
+| **EC2 → Instances → Monitoring** | CPUUtilization, NetworkIn/Out, StatusCheckFailed |
+| **CloudWatch → EC2 metrics** | NetworkOut (bytes/sec) over last 1h |
+| **Billing → Cost Explorer** | Filter **Data Transfer OUT** (main streaming cost) |
+
+**Typical causes:**
+
+| Symptom | Likely cause | Fix |
+|---------|--------------|-----|
+| High NetworkOut 24/7, many paths with `bytesReceived > 0` | Old always-on RTSP (`sourceOnDemand: false`) | `git pull`, `bash deploy/restart-mediamtx.sh`, re-open live page only |
+| High NetworkOut only when users watch | Normal HLS egress — ~1 Mbps per visible camera per user | Lazy-load is on; limit concurrent users or use substream (H264) |
+| CPU 100%, swap full, PM2 restarts | Instance too small (t3.micro/small) + H265 remux | Upgrade to **t3.medium** or larger; use substream |
+| API timeouts / 502 | PM2 crashed or orphan on :5280 | `pm2 logs cctv-api`, `bash deploy/diagnose-production.sh` |
+
+**Quick bandwidth math:** `users × visible_cameras × ~1 Mbps` ≈ egress. Example: 40 users × 3 visible tiles ≈ **120 Mbps OUT**.
+
+---
+
 ## Align EC2 with local dev (parity check)
 
 Local fixes that **must** also be on EC2:
