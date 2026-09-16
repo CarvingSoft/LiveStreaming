@@ -1,6 +1,6 @@
 import { ChangeDetectorRef, Component, inject, signal } from '@angular/core';
 import { FormBuilder, FormsModule, ReactiveFormsModule, Validators } from '@angular/forms';
-import { ActivatedRoute, RouterLink } from '@angular/router';
+import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { ApiService } from '../../../core/services/api.service';
 import { Camera, RtspSourceForm, Site } from '../../../core/models/api.models';
 import { StatusBadgeComponent } from '../../../shared/status-badge/status-badge.component';
@@ -21,8 +21,22 @@ import { publicRtspHostError } from '../../../core/utils/rtsp-host';
               <a [href]="'/' + site()!.slug" target="_blank" rel="noopener">/{{ site()!.slug }}</a>
             </p>
           </div>
-          <a [routerLink]="['/admin/sites', site()!.id, 'edit']" class="btn secondary">Edit Site</a>
+          <div class="toolbar-actions">
+            <a [routerLink]="['/admin/sites', site()!.id, 'edit']" class="btn secondary">Edit Site</a>
+            <button
+              type="button"
+              class="btn danger-btn"
+              [disabled]="deletingSite()"
+              (click)="deleteSite()"
+            >
+              {{ deletingSite() ? 'Deleting…' : 'Delete Site' }}
+            </button>
+          </div>
         </header>
+
+        @if (siteError()) {
+          <div class="error banner">{{ siteError() }}</div>
+        }
 
         <div class="grid">
           <section class="card">
@@ -256,6 +270,12 @@ import { publicRtspHostError } from '../../../core/utils/rtsp-host';
       margin-bottom: 1rem;
     }
 
+    .toolbar-actions {
+      display: flex;
+      gap: 0.75rem;
+      align-items: center;
+    }
+
     h1 {
       margin: 0 0 0.35rem;
     }
@@ -365,6 +385,20 @@ import { publicRtspHostError } from '../../../core/utils/rtsp-host';
       color: #0f172a;
     }
 
+    .danger-btn {
+      background: #fee2e2;
+      color: #991b1b;
+    }
+
+    .danger-btn:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+    }
+
+    .error.banner {
+      margin-bottom: 1rem;
+    }
+
     .link {
       border: 0;
       background: transparent;
@@ -407,12 +441,15 @@ import { publicRtspHostError } from '../../../core/utils/rtsp-host';
 })
 export class SiteDetailComponent {
   private readonly route = inject(ActivatedRoute);
+  private readonly router = inject(Router);
   private readonly api = inject(ApiService);
   private readonly fb = inject(FormBuilder);
   private readonly cdr = inject(ChangeDetectorRef);
 
   readonly site = signal<Site | null>(null);
   readonly cameras = signal<Camera[]>([]);
+  readonly deletingSite = signal(false);
+  readonly siteError = signal<string | null>(null);
   readonly editingCameraId = signal<string | null>(null);
   readonly editingCameraKey = signal('');
   readonly editFieldNonce = signal(0);
@@ -647,6 +684,35 @@ export class SiteDetailComponent {
         ? `${err.error?.message ?? 'Validation failed'} — ${fieldMessages}`
         : (err.error?.message ?? 'Unable to save camera.'),
     );
+  }
+
+  deleteSite(): void {
+    const site = this.site();
+    if (!site) return;
+
+    const cameraCount = this.cameras().length;
+    const message =
+      cameraCount > 0
+        ? `Delete site "${site.name}" and its ${cameraCount} camera(s)?\n\nAll streams will be removed from MediaMTX. This cannot be undone.`
+        : `Delete site "${site.name}"? This cannot be undone.`;
+
+    if (!confirm(message)) {
+      return;
+    }
+
+    this.deletingSite.set(true);
+    this.siteError.set(null);
+
+    this.api.deleteSite(site.id).subscribe({
+      next: () => {
+        this.deletingSite.set(false);
+        void this.router.navigate(['/admin/sites']);
+      },
+      error: (err) => {
+        this.deletingSite.set(false);
+        this.siteError.set(err.error?.message ?? 'Unable to delete site.');
+      },
+    });
   }
 
   deleteCamera(cameraId: string): void {

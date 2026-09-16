@@ -8,6 +8,7 @@ const camera_model_1 = require("../models/camera.model");
 const site_model_1 = require("../models/site.model");
 const audit_service_1 = require("../services/audit.service");
 const mediamtx_service_1 = require("../services/mediamtx.service");
+const stream_ondemand_service_1 = require("../services/stream-ondemand.service");
 const sanitize_1 = require("../utils/sanitize");
 const site_repository_1 = require("../repositories/site.repository");
 const errors_1 = require("../utils/errors");
@@ -114,6 +115,7 @@ exports.sitesRouter.delete('/:id', (0, validate_middleware_1.validateParams)(sit
             }
         }
         await camera_model_1.Camera.deleteMany({ siteId: site._id });
+        (0, stream_ondemand_service_1.clearSiteActivity)(site.slug);
         await site.deleteOne();
         await (0, audit_service_1.writeAuditLog)({
             userId: req.user.id,

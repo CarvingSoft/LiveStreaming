@@ -5,6 +5,7 @@ import { Camera } from '../models/camera.model';
 import { Site } from '../models/site.model';
 import { writeAuditLog } from '../services/audit.service';
 import { mediaMtxService } from '../services/mediamtx.service';
+import { clearSiteActivity } from '../services/stream-ondemand.service';
 import { sanitizeSite } from '../utils/sanitize';
 import { getSiteById } from '../repositories/site.repository';
 import { AppError } from '../utils/errors';
@@ -137,6 +138,7 @@ sitesRouter.delete(
       }
 
       await Camera.deleteMany({ siteId: site._id });
+      clearSiteActivity(site.slug);
       await site.deleteOne();
 
       await writeAuditLog({

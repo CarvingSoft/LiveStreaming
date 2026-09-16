@@ -18,6 +18,10 @@ export function touchSiteActivity(siteSlug: string): void {
   siteLastActivity.set(siteSlug, Date.now());
 }
 
+export function clearSiteActivity(siteSlug: string): void {
+  siteLastActivity.delete(siteSlug);
+}
+
 export function isSiteStreamingActive(siteSlug: string): boolean {
   if (!env.STREAM_ON_DEMAND) {
     return true;

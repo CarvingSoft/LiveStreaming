@@ -17,6 +17,10 @@ import { Site } from '../../../core/models/api.models';
         <a routerLink="/admin/sites/new" class="btn">Create Site</a>
       </header>
 
+      @if (error()) {
+        <div class="error">{{ error() }}</div>
+      }
+
       <div class="table-wrap">
         <table>
           <thead>
@@ -44,6 +48,14 @@ import { Site } from '../../../core/models/api.models';
                 <td class="actions">
                   <a [routerLink]="['/admin/sites', site.id]">Manage</a>
                   <a [routerLink]="['/admin/sites', site.id, 'edit']">Edit</a>
+                  <button
+                    type="button"
+                    class="danger"
+                    [disabled]="deletingId() === site.id"
+                    (click)="deleteSite(site)"
+                  >
+                    {{ deletingId() === site.id ? 'Deleting…' : 'Delete' }}
+                  </button>
                 </td>
               </tr>
             } @empty {
@@ -121,6 +133,24 @@ import { Site } from '../../../core/models/api.models';
       font-weight: 600;
     }
 
+    .actions button {
+      border: 0;
+      background: transparent;
+      padding: 0;
+      font: inherit;
+      cursor: pointer;
+    }
+
+    .actions button:disabled {
+      cursor: not-allowed;
+      opacity: 0.6;
+    }
+
+    .danger {
+      color: #b91c1c;
+      font-weight: 600;
+    }
+
     .pill {
       display: inline-block;
       padding: 0.2rem 0.55rem;
@@ -138,19 +168,53 @@ import { Site } from '../../../core/models/api.models';
       background: #fee2e2;
       color: #991b1b;
     }
+
+    .error {
+      margin-bottom: 1rem;
+      color: #b91c1c;
+      background: #fee2e2;
+      padding: 0.65rem 0.75rem;
+      border-radius: 8px;
+    }
   `,
 })
 export class SitesListComponent {
   private readonly api = inject(ApiService);
   readonly sites = signal<Site[]>([]);
+  readonly deletingId = signal<string | null>(null);
+  readonly error = signal<string | null>(null);
 
   constructor() {
     this.loadSites();
   }
 
+  deleteSite(site: Site): void {
+    const message = `Delete site "${site.name}"?\n\nAll cameras and MediaMTX streams for this site will be permanently removed. This cannot be undone.`;
+    if (!confirm(message)) {
+      return;
+    }
+
+    this.deletingId.set(site.id);
+    this.error.set(null);
+
+    this.api.deleteSite(site.id).subscribe({
+      next: () => {
+        this.sites.update((sites) => sites.filter((entry) => entry.id !== site.id));
+        this.deletingId.set(null);
+      },
+      error: (err) => {
+        this.deletingId.set(null);
+        this.error.set(err.error?.message ?? 'Unable to delete site.');
+      },
+    });
+  }
+
   private loadSites(): void {
     this.api.getSites().subscribe({
       next: (sites) => this.sites.set(sites),
+      error: (err) => {
+        this.error.set(err.error?.message ?? 'Unable to load sites.');
+      },
     });
   }
 }

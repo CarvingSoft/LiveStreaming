@@ -55,8 +55,19 @@ import { ApiService } from '../../../core/services/api.service';
         }
 
         <div class="actions">
+          @if (isEdit()) {
+            <button
+              type="button"
+              class="danger"
+              [disabled]="deleting() || saving()"
+              (click)="deleteSite()"
+            >
+              {{ deleting() ? 'Deleting…' : 'Delete Site' }}
+            </button>
+          }
+          <span class="spacer"></span>
           <a routerLink="/admin/sites">Cancel</a>
-          <button type="submit" [disabled]="form.invalid || saving()">Save Site</button>
+          <button type="submit" [disabled]="form.invalid || saving() || deleting()">Save Site</button>
         </div>
       </form>
     </section>
@@ -102,6 +113,25 @@ import { ApiService } from '../../../core/services/api.service';
       align-items: center;
     }
 
+    .spacer {
+      flex: 1;
+    }
+
+    .danger {
+      border: 0;
+      border-radius: 8px;
+      padding: 0.7rem 1rem;
+      background: #fee2e2;
+      color: #991b1b;
+      font-weight: 700;
+      cursor: pointer;
+    }
+
+    .danger:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+    }
+
     .actions a {
       color: #64748b;
       text-decoration: none;
@@ -133,6 +163,7 @@ export class SiteFormComponent {
 
   readonly isEdit = signal(false);
   readonly saving = signal(false);
+  readonly deleting = signal(false);
   readonly error = signal<string | null>(null);
 
   readonly form = this.fb.nonNullable.group({
@@ -174,6 +205,31 @@ export class SiteFormComponent {
       .replace(/[^a-z0-9]+/g, '-')
       .replace(/^-+|-+$/g, '')
       .slice(0, 80);
+  }
+
+  deleteSite(): void {
+    const id = this.route.snapshot.paramMap.get('id');
+    const name = this.form.controls.name.value.trim();
+    if (!id) return;
+
+    const message = `Delete site "${name || 'this site'}"?\n\nAll cameras and streams will be permanently removed. This cannot be undone.`;
+    if (!confirm(message)) {
+      return;
+    }
+
+    this.deleting.set(true);
+    this.error.set(null);
+
+    this.api.deleteSite(id).subscribe({
+      next: () => {
+        this.deleting.set(false);
+        void this.router.navigate(['/admin/sites']);
+      },
+      error: (err) => {
+        this.deleting.set(false);
+        this.error.set(err.error?.message ?? 'Unable to delete site.');
+      },
+    });
   }
 
   submit(): void {
